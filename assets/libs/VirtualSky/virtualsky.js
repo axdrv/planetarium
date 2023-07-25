@@ -176,330 +176,56 @@ function VirtualSky(input){
 	this.calendarevents = [];
 	this.events = {};	// Let's add some default events
 
-	// Projections
-	this.projections = {
-		'polar': {
-			title: 'Polar projection',
-			azel2xy: function(az,el,w,h){
-				var radius = h/2;
-				var r = radius*((Math.PI/2)-el)/(Math.PI/2);
-				return {x:(w/2-r*Math.sin(az)),y:(radius-r*Math.cos(az)),el:el};
-			},
-			xy2azel: function(x, y, w, h) {
-				var radius = h/2;
 
-				var X = w/2-x;
-				var Y = radius - y;
-				// X = r * Math.sin(az)
-				// Y = r * Math.cos(az)
-				r = Math.sqrt(X*X + Y*Y);
-				// r = radius*((Math.PI/2)-el)/(Math.PI/2);
-				// el = (Math.PI/2) - r * (Math.PI/2) / radius
-				var el = (Math.PI/2) - r * (Math.PI/2) / radius;
-				if (el < 0) {
-					return undefined;
-				}
-				var az = Math.atan2(X, Y);
-				return [az, el];
-			},
-			polartype: true,
-			atmos: true
-		},
-		'fisheye':{
-			title: 'Fisheye polar projection',
-			azel2xy: function(az,el,w,h){
-				var radius = h/2;
-				var r = radius*Math.sin(((Math.PI/2)-el)/2)/0.70710678;	// the field of view is bigger than 180 degrees
-				return {x:(w/2-r*Math.sin(az)),y:(radius-r*Math.cos(az)),el:el};
-			},
-			xy2azel: function(x, y, w, h) {
-				var radius = h/2;
 
-				var X = w/2-x;
-				var Y = radius - y;
-				r = Math.sqrt(X*X + Y*Y);
-				if (r > radius) {
-					return undefined;
-				}
-				var el = Math.PI/2 - 2 * Math.asin(r * 0.70710678 / radius);
-				var az = Math.atan2(X, Y);
-				return [az, el];
-			},
-			polartype:true,
-			atmos: true
-		},
-		'ortho':{
-			title: 'Orthographic polar projection',
-			azel2xy: function(az,el,w,h){
-				var radius = h/2;
-				var r = radius*Math.cos(el);
-				return {x:(w/2-r*Math.sin(az)),y:(radius-r*Math.cos(az)),el:el};
-			},
-			xy2azel: function(x, y, w, h) {
-				var radius = h/2;
-
-				var X = w/2-x;
-				var Y = radius - y;
-				r = Math.sqrt(X*X + Y*Y);
-				if (r > radius) {
-					return undefined;
-				}
-				var el = Math.acos(r / radius);
-				var az = Math.atan2(X, Y);
-				return [az, el];
-			},
-			polartype:true,
-			atmos: true
-		},
+	// Projection //muComment// refacted in first commit
+	this.projection = {
 		'stereo': {
 			title: 'Stereographic projection',
-			azel2xy: function(az,el,w,h){
-				var f = 0.42;
-				var sinel1 = 0;
-				var cosel1 = 1;
-				var cosaz = Math.cos((az-Math.PI));
-				var sinaz = Math.sin((az-Math.PI));
-				var sinel = Math.sin(el);
-				var cosel = Math.cos(el);
-				var k = 2/(1+sinel1*sinel+cosel1*cosel*cosaz);
-				return {x:(w/2+f*k*h*cosel*sinaz),y:(h-f*k*h*(cosel1*sinel-sinel1*cosel*cosaz)),el:el};
-			},
-			xy2azel: function(x, y, w, h) {
-				var f = 0.42;
-				var sinel1 = 0;
-				var cosel1 = 1;
-				var X = (x - w/2) / h;
-				var Y = (h - y)/h;
-				var R = f;
-
-				var P = Math.sqrt(X * X + Y * Y);
-				var c = 2 * Math.atan2(P, 2*R);
-
-				var el = Math.asin(Math.cos(c)*sinel1 + Y * Math.sin(c) * cosel1 / P);
-				var az = Math.PI + Math.atan2(X * Math.sin(c), P * cosel1 * Math.cos(c) - Y * sinel1 * Math.sin(c));
-
-				return [az, el];
-			},
 			atmos: true
-		},
-		'lambert':{
-			title: 'Lambert projection',
-			azel2xy: function(az,el,w,h){
-				var cosaz = Math.cos((az-Math.PI));
-				var sinaz = Math.sin((az-Math.PI));
-				var sinel = Math.sin(el);
-				var cosel = Math.cos(el);
-				var k = Math.sqrt(2/(1+cosel*cosaz));
-				return {x:(w/2+0.6*h*k*cosel*sinaz),y:(h-0.6*h*k*(sinel)),el:el};
-			},
-			xy2azel: function(x, y, w, h) {
-				var X = (x - w/2) / (0.6 * h);
-				var Y = (h - y) / (0.6 * h);
-
-				var p = Math.sqrt(X * X + Y * Y);
-				if (p > 2 || p < -2) {
-					return undefined;
-				}
-				var c = 2 * Math.asin(p / 2);
-
-				var el = Math.asin(Y * Math.sin(c)/p);
-				var az = Math.PI + Math.atan2(X * Math.sin(c), p * Math.cos(c));
-
-				return [az, el];
-			},
-			atmos: true
-		},
-		'gnomic': {
-			title: 'Gnomic projection',
-			azel2xy: function(az,el){
-				if(el >= 0){
-					var pos = this.azel2radec(az,el);
-					return this.radec2xy(pos.ra*this.d2r,pos.dec*this.d2r,[el,az]);
-				}else{
-					return { x: -1, y: -1, el: el };
-				}
-			},
-			radec2xy: function(ra,dec,coords){
-
-				var cd, cd0, sd, sd0, dA, A, F, scale;
-
-				// Only want to project the sky around the map centre
-				if(Math.abs(dec-this.dc_off) > this.maxangle) return {x:-1,y:-1,el:-1};
-				var ang = this.greatCircle(this.ra_off,this.dc_off,ra,dec);
-				if(ang > this.maxangle) return {x:-1,y:-1,el:-1};
-
-				if(!coords) coords = this.coord2horizon(ra, dec);
-
-				// Should we show things below the horizon?
-				if(this.ground && coords[0] < -1e-6) return {x:-1, y:-1, el:coords[0]*this.r2d};
-
-				// number of pixels per degree in the map
-				scale = this.tall/this.fov;
-
-				cd = Math.cos(dec);
-				cd0 = Math.cos(this.dc_off);
-				sd = Math.sin(dec);
-				sd0 = Math.sin(this.dc_off);
-
-				dA = ra-this.ra_off;
-				dA = inrangeAz(dA);
-
-				A = cd*Math.cos(dA);
-				F = scale*this.r2d/(sd0*sd + A*cd0);
-
-				return {x:(this.wide/2)-F*cd*Math.sin(dA),y:(this.tall/2) -F*(cd0*sd - A*sd0),el:coords[0]*this.r2d};
-			},
-			xy2radec: function(x,y){
-
-				// number of pixels per degree in the map
-				var scale = this.tall/this.fov;
-
-				var X = ((this.wide/2) - x) / (scale*this.r2d);
-				var Y = ((this.tall/2) - y) / (scale*this.r2d);
-
-				var p = Math.sqrt(X*X + Y*Y);
-				var c = Math.atan(p);
-
-				var dec = Math.asin(Math.cos(c)*Math.sin(this.dc_off) + Y * Math.sin(c) * Math.cos(this.dc_off)/ p);
-				var ra = this.ra_off + Math.atan2(X * Math.sin(c), (p * Math.cos(this.dc_off) * Math.cos(c) - Y * Math.sin(this.dc_off) * Math.sin(c)));
-
-				// Only want to project the sky around the map centre
-				if(Math.abs(dec-this.dc_off) > this.maxangle) return undefined;
-				var ang = this.greatCircle(this.ra_off,this.dc_off,ra,dec);
-				if(ang > this.maxangle) return undefined;
-
-				var coords = this.coord2horizon(ra, dec);
-
-				// Should we show things below the horizon?
-				if(this.ground && coords[0] < -1e-6) return undefined;
-
-				return {ra: ra, dec: dec};
-			},
-			draw: function(){
-				if(!this.transparent){
-					this.ctx.fillStyle = (this.hasGradient()) ? "rgba(0,15,30, 1)" : ((this.negative) ? this.col.white : this.col.black);
-					this.ctx.fillRect(0,0,this.wide,this.tall);
-					this.ctx.fill();
-				}
-			},
-			isVisible: function(el){
-				return true;
-			},
-			atmos: false,
-			fullsky: true
-		},
-		'equirectangular':{
-			title: 'Equirectangular projection',
-			azel2xy: function(az,el,w,h){
-				while(az < 0) az += 2*Math.PI;
-				az = (az)%(Math.PI*2);
-				return {x:(((az-Math.PI)/(Math.PI/2))*h + w/2),y:(h-(el/(Math.PI/2))*h),el:el};
-			},
-			xy2azel: function(x, y, w, h) {
-				var az = (Math.PI/2) * (x - w / 2) / h + Math.PI;
-				if (az < 0 || az > 2 * Math.PI) {
-					return undefined;
-				}
-				var el = (Math.PI/2) * (h - y) / h;
-				return [az, el];
-			},
-			maxb: 90,
-			atmos: true
-		},
-		'mollweide':{
-			title: 'Mollweide projection',
-			radec2xy: function(ra,dec){
-				var dtheta, x, y, coords, sign, outside, normra;
-				var thetap = Math.abs(dec);
-				var pisindec = Math.PI*Math.sin(Math.abs(dec));
-				// Now iterate to correct answer
-				for(var i = 0; i < 20 ; i++){
-					dtheta = -(thetap + Math.sin(thetap) - pisindec)/(1+Math.cos(thetap));
-					thetap += dtheta;
-					if(dtheta < 1e-4) break;
-				}
-				normra = (ra+this.d2r*this.az_off)%(2*Math.PI) - Math.PI;
-				outside = false;
-				x = -(2/Math.PI)*(normra)*Math.cos(thetap/2)*this.tall/2 + this.wide/2;
-				if(x > this.wide) outside = true;
-				sign = (dec >= 0) ? 1 : -1;
-				y = -sign*Math.sin(thetap/2)*this.tall/2 + this.tall/2;
-				coords = this.coord2horizon(ra, dec);
-				return {x:(outside ? -100 : x%this.wide),y:y,el:coords[0]*this.r2d};
-			},
-			xy2radec: function(x, y) {
-				var X  = (this.wide/2 - x) * Math.sqrt(2) * 2 / this.tall;
-				var Y = (this.tall/2 - y) * Math.sqrt(2) * 2 / this.tall;
-
-				var theta = Math.asin(Y / Math.sqrt(2));
-				var dec = Math.asin((2 * theta + Math.sin(2 * theta)) / Math.PI);
-				if (Math.abs(X) > 2 * Math.sqrt(2) * Math.cos(theta)) {
-					// Out of bounds
-					return undefined;
-				}
-				var ra = Math.PI - (this.d2r*this.az_off) + Math.PI * X / (2 * Math.sqrt(2) * Math.cos(theta));
-				return {ra: ra, dec: dec};
-			},
-			draw: function(){
-				var c = this.ctx;
-				c.moveTo(this.wide/2,this.tall/2);
-				c.beginPath();
-				var x = this.wide/2-this.tall;
-				var y = 0;
-				var w = this.tall*2;
-				var h = this.tall;
-				var kappa = 0.5522848;
-				var ox = (w / 2) * kappa; // control point offset horizontal
-				var oy = (h / 2) * kappa; // control point offset vertical
-				var xe = x + w;           // x-end
-				var ye = y + h;           // y-end
-				var xm = x + w / 2;       // x-middle
-				var ym = y + h / 2;       // y-middle
-				c.moveTo(x, ym);
-				c.bezierCurveTo(x, ym - oy, xm - ox, y, xm, y);
-				c.bezierCurveTo(xm + ox, y, xe, ym - oy, xe, ym);
-				c.bezierCurveTo(xe, ym + oy, xm + ox, ye, xm, ye);
-				c.bezierCurveTo(xm - ox, ye, x, ym + oy, x, ym);
-				c.closePath();
-				if(!this.transparent){
-					c.fillStyle = (this.hasGradient()) ? "rgba(0,15,30, 1)" : ((this.negative) ? this.col.white : this.col.black);
-					c.fill();
-				}
-			},
-			altlabeltext:true,
-			fullsky:true,
-			atmos: false
-		},
-		'planechart':{
-			title: 'Planechart projection',
-			radec2xy: function(ra,dec){
-				ra = inrangeAz(ra);
-				var normra = (ra+this.d2r*this.az_off)%(2*Math.PI)-Math.PI;
-				var x = -(normra/(2*Math.PI))*this.tall*2 + this.wide/2;
-				var y = -(dec/Math.PI)*this.tall+ this.tall/2;
-				var coords = this.coord2horizon(ra, dec);
-				return {x:x,y:y,el:coords[0]*this.r2d};
-			},
-			xy2radec: function(x, y) {
-				var normra = (this.wide / 2 - x)* 2 * Math.PI / (this.tall * 2);
-				if (Math.abs(normra) > Math.PI) {
-					return undefined;
-				}
-				var ra = normra + Math.PI - this.d2r*this.az_off;
-				var dec = Math.PI * (this.tall / 2 - y) / this.tall;
-				return {ra: ra, dec: dec};
-			},
-			draw: function(){
-				if(!this.transparent){
-					this.ctx.fillStyle = (this.hasGradient()) ? "rgba(0,15,30, 1)" : ((this.negative) ? this.col.white : this.col.black);
-					this.ctx.fillRect((this.wide/2) - (this.tall),0,this.tall*2,this.tall);
-					this.ctx.fill();
-				}
-			},
-			fullsky:true,
-			atmos: false
 		}
 	};
+	this.azel2radec = function(az,el){
+		var xt,yt,r,l;
+		l = this.latitude.rad;
+		xt  =  Math.asin( Math.sin(el) * Math.sin(l) + Math.cos(el) * Math.cos(l) * Math.cos(az) );
+		r = ( Math.sin(el) - Math.sin(l) * Math.sin(xt) ) / ( Math.cos(l) * Math.cos(xt) );
+		if(r > 1) r = 1;
+		yt  =  Math.acos(r);
+		if(Math.sin(az) > 0.0) yt  =  Math.PI*2 - yt;
+		xt *= this.r2d;
+		yt *= this.r2d;
+		yt = (this.times.LST*15 - yt + 360)%360.0;
+		return { ra: yt, dec: xt };
+	};
+	this.azel2xy = function(az,el,w,h){
+		var f = 0.42;
+		var sinel1 = 0;
+		var cosel1 = 1;
+		var cosaz = Math.cos((az-Math.PI));
+		var sinaz = Math.sin((az-Math.PI));
+		var sinel = Math.sin(el);
+		var cosel = Math.cos(el);
+		var k = 2/(1+sinel1*sinel+cosel1*cosel*cosaz);
+		return {x:(w/2+f*k*h*cosel*sinaz),y:(h-f*k*h*(cosel1*sinel-sinel1*cosel*cosaz)),el:el};
+	}
+	this.xy2azel = function(x, y, w, h) {
+		var f = 0.42;
+		var sinel1 = 0;
+		var cosel1 = 1;
+		var X = (x - w/2) / h;
+		var Y = (h - y)/h;
+		var R = f;
+
+		var P = Math.sqrt(X * X + Y * Y);
+		var c = 2 * Math.atan2(P, 2*R);
+
+		var el = Math.asin(Math.cos(c)*sinel1 + Y * Math.sin(c) * cosel1 / P);
+		var az = Math.PI + Math.atan2(X * Math.sin(c), P * cosel1 * Math.cos(c) - Y * sinel1 * Math.sin(c));
+
+		return [az, el];
+	}
+	
 
 	//myComment// Stars section
 	this.lookup.star = [];
@@ -786,6 +512,8 @@ function VirtualSky(input){
 	// Overwrite our defaults with input values
 	this.init(input);
 
+	//myCode//myComment// removed languages object remain and load here only Russian
+
 	this.lang = 'ru';		// default
 	this.loadJSON(
 		'assets/libs/VirtualSky/lang/ru.json',
@@ -802,9 +530,6 @@ function VirtualSky(input){
 		function(data){},
 		function(e){}
 	);
-
-	//if(typeof this.polartype=="undefined") this.selectProjection('polar');	// Set the default projection
-	this.selectProjection('stereo')//myTunes
 
 	// Update the colours
 	this.updateColours();
@@ -895,7 +620,6 @@ VirtualSky.prototype.init = function(d){
 		meridian: b,
 		clock: o,
 		background: s,
-		color: s,
 		fov: n,
 		objects: s,
 		base: s,
@@ -908,7 +632,6 @@ VirtualSky.prototype.init = function(d){
 			this[key] = d[key];
 
 	// Undirectly paired values
-	if(is(d.projection,s)) this.selectProjection(d.projection);
 	if(is(d.constellations,b)) this.constellation.lines = d.constellations;
 	if(is(d.constellationboundaries,b)) this.constellation.boundaries = d.constellationboundaries;
 	if(is(d.constellationlabels,b)) this.constellation.labels = d.constellationlabels;
@@ -1248,13 +971,6 @@ VirtualSky.prototype.createSky = function(){
 					if(!s.theta) s.theta = theta;
 					s.az_off -= (s.theta-theta)*s.r2d;
 					s.theta = theta;
-				}else if(s.projection.id=="gnomic"){
-					f = 0.0015*(s.fov*s.d2r);
-					dr = 0;
-					if(typeof s.x=="number") dr = Math.min(Math.abs(s.x-x)*f/(Math.cos(s.dc_off)),Math.PI/36);
-					if(typeof s.y=="number") s.dc_off -= (s.y-y)*f;
-					s.ra_off -= (s.x-x > 0 ? 1 : -1)*dr;
-					s.dc_off = inrangeEl(s.dc_off);
 				}else{
 					if(typeof s.x=="number") s.az_off += (s.x-x)/4;
 				}
@@ -1312,15 +1028,6 @@ VirtualSky.prototype.createSky = function(){
 					if(!s.theta) s.theta = theta;
 					s.az_off -= (s.theta-theta)*s.r2d;
 					s.theta = theta;
-				}else if(s.projection.id=="gnomic"){
-					f = 0.0015*(s.fov*s.d2r);
-					dr = 0;
-					if(typeof s.x=="number")
-						dr = Math.min(Math.abs(s.x-x)*f/(Math.cos(s.dc_off)),Math.PI/36);
-					if(typeof s.y=="number")
-						s.dc_off -= (s.y-y)*f;
-					s.ra_off -= (s.x-x > 0 ? 1 : -1)*dr;
-					s.dc_off = inrangeEl(s.dc_off);
 				}else{
 					if(typeof s.x=="number")
 						s.az_off += (s.x-x)/4;
@@ -1358,10 +1065,7 @@ VirtualSky.prototype.createSky = function(){
 			var delta = -(e.originalEvent.deltaY || e.originalEvent.wheelDelta);
 			if(!delta) delta = 0;
 			var s = e.data.sky;
-			if(s.mouse && s.projection.id=="gnomic"){
-				s.changeFOV(delta).draw();
-				return false;
-			}else return true;
+			return true;
 		});
 		S(document).on('keypress',{sky:this},function(ev,b){
 			if(!ev) ev = window.event;
@@ -1373,7 +1077,6 @@ VirtualSky.prototype.createSky = function(){
 
 	this.registerKey('a',function(){ this.toggleAtmosphere(); },'atmos');
 	this.registerKey('g',function(){ this.toggleGround(); },'ground');
-	this.registerKey('h',function(){ this.cycleProjection(); },'projection');
 	this.registerKey('i',function(){ this.toggleNegative(); },'neg');
 	this.registerKey(',',function(){ this.toggleEcliptic(); },'ec');
 	this.registerKey(';',function(){ this.toggleMeridian(); },'meridian');
@@ -1604,118 +1307,15 @@ function inrangeEl(a,deg){
 	}
 	return a;
 }
-VirtualSky.prototype.selectProjection = function(proj){
-	if(this.projections[proj]){
-		this.projection = this.projections[proj];
-		this.projection.id = proj;
-		this.fullsky = this.projection.fullsky == true;
-		this.polartype = this.projection.polartype == true;
 
-		// Set coordinate transforms
-
-		// Convert AZ,EL -> X,Y
-		// Inputs: az (rad), el (rad), width (px), height (px)
-		if(typeof this.projection.azel2xy==="function"){
-			this.azel2xy = this.projection.azel2xy;
-		}else{
-			this.azel2xy = function(az,el,w,h){
-				if(!w) w = this.wide;
-				if(!h) h = this.tall;
-				if(az < 0) az += 360;
-				return {x:-1,y:-1,el:-1};
-			};
-		}
-
-		// Convert AZ,EL -> RA,Dec
-		// Inputs: az (rad), el (rad)
-		// Output: { ra: ra (deg), dec: dec (deg) }
-		if(typeof this.projection.azel2radec==="function"){
-			this.azel2radec = this.projection.azel2radec;
-		}else{
-			this.azel2radec = function(az,el){
-				var xt,yt,r,l;
-				l = this.latitude.rad;
-				xt  =  Math.asin( Math.sin(el) * Math.sin(l) + Math.cos(el) * Math.cos(l) * Math.cos(az) );
-				r = ( Math.sin(el) - Math.sin(l) * Math.sin(xt) ) / ( Math.cos(l) * Math.cos(xt) );
-				if(r > 1) r = 1;
-				yt  =  Math.acos(r);
-				if(Math.sin(az) > 0.0) yt  =  Math.PI*2 - yt;
-				xt *= this.r2d;
-				yt *= this.r2d;
-				yt = (this.times.LST*15 - yt + 360)%360.0;
-				return { ra: yt, dec: xt };
-			};
-		}
-
-		if(this.ctx) this.updateSkyGradient();
-
-		this.updateColours();
-
-		// Draw update label
-		if(this.container){
-			var s = (this.lang.projections && this.lang.projections[proj]) ? this.lang.projections[proj] : this.projections[proj].title;
-			if(S('.'+this.id+'_projection').length > 0) S('.'+this.id+'_projection').remove();
-			this.container.append('<div class="'+this.id+'_projection">'+s+'</div>');
-			var elem = S('.'+this.id+'_projection');
-			elem.on('mouseover',{me:this},function(e){e.data.me.mouseover = true;})
-				.css({
-					'position':'absolute',
-					'padding':0,
-					'height':'2em',
-					'top':'50%',
-					'left':'50%',
-					'transform':'translate3D(-50%,-50%,0)',
-					'text-align':'center',
-					'line-height':'2em',
-					'z-index':20,
-					'font-size':'1.5em',
-					'display':'block',
-					'overflow':'hidden',
-					'background-color':'transparent',
-					'color':(this.negative ? this.col.black : this.col.white),
-					'opacity':1
-				});
-			setTimeout(function(e){
-				e.fadeOut(1000,function(){ this.remove(); });
-			},500,elem);
-		}
-	}
-};
-// Cycle through the map projections
-VirtualSky.prototype.cycleProjection = function(){
-	var usenext = false;
-	var proj = this.projection.id;
-	var i = 0;
-	var firstkey;
-	for(var key in this.projections){
-		if(this.projections[key]){
-			if(i==0) firstkey = key;
-			if(usenext){
-				proj = key;
-				break;
-			}
-			if(key == this.projection.id) usenext = true;
-			i++;
-		}
-	}
-	if(proj == this.projection.id) proj = firstkey;
-	this.drawImmediate(proj);
-};
 // Update the sky colours
 VirtualSky.prototype.updateColours = function(){
 	// We need to make a copy of the correct colour palette otherwise it'll overwrite it
 	this.col = JSON.parse(JSON.stringify( ((this.negative) ? this.colours.negative : this.colours.normal) ));
-	//this.col = $.extend(true, {}, ((this.negative) ? this.colours.negative : this.colours.normal));
-	if(this.color==""){
-		if((this.polartype || this.projection.altlabeltext))
-			this.col.txt = this.col.grey;
-	}else{
-		this.col.txt = this.color;
-	}
+	this.col.txt = this.color;
 };
 
-VirtualSky.prototype.isVisible = function(el){
-	if(typeof this.projection.isVisible==="function") return this.projection.isVisible.call(el);
+VirtualSky.prototype.isVisible = function(el){	
 	if(!this.fullsky) return (el > 0);
 	else return (this.ground) ? (el > 0) : true;
 };
@@ -1864,19 +1464,16 @@ VirtualSky.prototype.ecliptic2radec = function(l,b,JD){
 // Returns [x, y (,elevation)]
 VirtualSky.prototype.ecliptic2xy = function(l,b,LST){
 	LST = LST || this.times.LST;
-	var pos;
-	if(typeof this.projection.ecliptic2xy==="function") return this.projection.ecliptic2xy.call(this,l,b,LST);
-	else{
-		if(this.fullsky){
-			pos = this.ecliptic2radec(l,b);
-			return this.radec2xy(pos.ra,pos.dec);
-		}else{
-			pos = this.ecliptic2azel(l,b,LST);
-			var el = pos.el*this.r2d;
-			pos = this.azel2xy(pos.az-(this.az_off*this.d2r),pos.el,this.wide,this.tall);
-			pos.el = el;
-			return pos;
-		}
+	var pos;	
+	if(this.fullsky){
+		pos = this.ecliptic2radec(l,b);
+		return this.radec2xy(pos.ra,pos.dec);
+	}else{
+		pos = this.ecliptic2azel(l,b,LST);
+		var el = pos.el*this.r2d;
+		pos = this.azel2xy(pos.az-(this.az_off*this.d2r),pos.el,this.wide,this.tall);
+		pos.el = el;
+		return pos;
 	}
 	return 0;
 };
@@ -1885,46 +1482,28 @@ VirtualSky.prototype.ecliptic2xy = function(l,b,LST){
 // Inputs: RA (rad), Dec (rad)
 // Returns [x, y (,elevation)]
 VirtualSky.prototype.radec2xy = function(ra,dec){
-	if(typeof this.projection.radec2xy==="function") return this.projection.radec2xy.call(this,ra,dec);
-	else{
-		var coords = this.coord2horizon(ra, dec);
-		// Only return coordinates above the horizon
-		//if(coords[0] > 0){
-			var pos = this.azel2xy(coords[1]-(this.az_off*this.d2r),coords[0],this.wide,this.tall);
-			return {x:pos.x,y:pos.y,az:coords[1]*this.r2d,el:coords[0]*this.r2d};
-		//}
-	}
+	var coords = this.coord2horizon(ra, dec);
+	// Only return coordinates above the horizon
+	//if(coords[0] > 0){
+		var pos = this.azel2xy(coords[1]-(this.az_off*this.d2r),coords[0],this.wide,this.tall);
+		return {x:pos.x,y:pos.y,az:coords[1]*this.r2d,el:coords[0]*this.r2d};
+	//}
 	return 0;
 };
 
 // Returns {ra (rad), dec (rad)}
 VirtualSky.prototype.xy2radec = function(x, y){
-	if (typeof this.projection.xy2radec==="function") return this.projection.xy2radec.call(this,x,y);
-	else if (typeof this.projection.xy2azel === "function") {
-		var azel = this.projection.xy2azel(x, y,this.wide,this.tall);
+		var azel = this.xy2azel(x, y,this.wide,this.tall);
 		if (azel === undefined) {
 			return undefined;
 		}
-
 		var coords = [azel[1], azel[0] + (this.az_off*this.d2r)];
-
 		return this.horizon2coord(coords);
-	} else {
-		return undefined;
-	}
 };
 
-// Dummy function - overwritten in selectProjection
-// Convert AZ,EL -> X,Y
-// Inputs: az (degrees), el (degrees), width (px), height (px)
-// Output: { x: x, y: y }
-VirtualSky.prototype.azel2xy = function(az,el,w,h){ return {x:-1,y:-1}; };
 
-// Dummy functions - overwritten in selectProjection
-// Convert AZ,EL -> RA,Dec
-// Inputs: az (rad), el (rad)
-// Output: { ra: ra (deg), dec: dec (deg) }
-VirtualSky.prototype.azel2radec = function(az,el){ return { ra: 0, dec: 0 }; };
+
+
 
 // Convert Galactic -> x,y
 // Inputs: longitude (rad), latitude (rad)
@@ -1982,20 +1561,11 @@ VirtualSky.prototype.fontsize = function(){
 
 VirtualSky.prototype.updateSkyGradient = function(){
 	var s = null;
-	if(this.ctx && this.hasGradient()){
-		if(this.projection.polartype){
-			if(typeof this.ctx.createRadialGradient==="function"){
-				s = this.ctx.createRadialGradient(this.wide/2,this.tall/2,0,this.wide/2,this.tall/2,this.tall/2);
-				s.addColorStop(0, 'rgba(0,0,0,1)');
-				s.addColorStop(0.7, 'rgba(0,0,0,0.2)');
-				s.addColorStop(1, 'rgba(0,50,80,0.3)');
-			}
-		}else{
+	if(this.ctx && this.hasGradient()){		
 			s = this.ctx.createLinearGradient(0,0,0,this.tall);
 			s.addColorStop(0.0, 'rgba(0,30,50,0.1)');
 			s.addColorStop(0.7, 'rgba(0,30,50,0.35)');
 			s.addColorStop(1, 'rgba(0,50,80,0.6)');
-		}
 	}
 	this.skygrad = s;
 	return this;
@@ -2007,7 +1577,7 @@ VirtualSky.prototype.draw = function(){
 	this.pendingRefresh = window.setTimeout(this.drawImmediate.bind(this), 20);
 };
 
-VirtualSky.prototype.drawImmediate = function(proj){
+VirtualSky.prototype.drawImmediate = function(){
 	// Don't bother drawing anything if there is no physical area to draw on
 	if(this.pendingRefresh !== undefined){
 		window.clearTimeout(this.pendingRefresh);
@@ -2017,7 +1587,6 @@ VirtualSky.prototype.drawImmediate = function(proj){
 	if(this.wide <= 0 || this.tall <= 0) return this;
 	if(!(this.c && this.c.getContext)) return this;
 
-	if(proj !== undefined) this.selectProjection(proj);
 	var white = this.col.white;
 	var black = this.col.black;
 	var i,off,clockstring,metric_clock,positionstring,metric_pos;
@@ -2030,22 +1599,7 @@ VirtualSky.prototype.drawImmediate = function(proj){
 	c.clearRect(0,0,this.wide,this.tall);
 	c.fillStyle = (this.polartype || this.fullsky) ? this.background : ((this.negative) ? white : black);
 	c.fillRect(0,0,this.wide,this.tall);
-	c.fill();
-
-	if(this.polartype){
-		c.moveTo(this.wide/2,this.tall/2);
-		c.closePath();
-		c.beginPath();
-		c.arc(this.wide/2,this.tall/2,-0.5+this.tall/2,0,Math.PI*2,true);
-		c.closePath();
-		if(!this.transparent){
-			c.fillStyle = (this.hasGradient()) ? "rgba(0,15,30, 1)" : ((this.negative) ? white : black);
-			c.fill();
-		}
-		c.lineWidth = 0.5;
-		c.strokeStyle = black;
-		c.stroke();
-	}else if(typeof this.projection.draw==="function") this.projection.draw.call(this);
+	c.fill();	
 
 	if(this.hasGradient()){
 		if(!this.skygrad){
@@ -2054,8 +1608,7 @@ VirtualSky.prototype.drawImmediate = function(proj){
 			c.beginPath();
 			c.fillStyle = this.skygrad;
 			// draw shapes
-			if(this.projection.polartype){ c.arc(this.wide/2,this.tall/2,this.tall/2,0,2*Math.PI,false); c.fill(); }
-			else c.fillRect(0,0,this.wide,this.tall);
+			c.fillRect(0,0,this.wide,this.tall);
 			c.closePath();
 		}
 	}
@@ -2290,7 +1843,6 @@ VirtualSky.prototype.drawStars = function(){
 	var f = 1;
 	if(this.negative) f *= 1.4;
 	if(typeof this.scalestars==="number" && this.scalestars!=1) f *= this.scalestars;
-	if(this.projection.id==="gnomic") f *= fovf;
 
 	for(i = 0; i < this.stars.length; i++){
 		if(this.stars[i][1] < this.magnitude){
@@ -2761,7 +2313,7 @@ VirtualSky.prototype.drawMeridian = function(colour){
 	var c = this.ctx;
 	var a, b;
 	var minb = 0;
-	var maxb = (typeof this.projection.maxb==="number") ? this.projection.maxb*this.d2r : Math.PI/2;
+	var maxb = Math.PI/2;
 	var step = 2*this.d2r;
 	var maxl = this.maxLine();
 	c.beginPath();
@@ -2791,7 +2343,7 @@ VirtualSky.prototype.drawGridlines = function(type,step,colour){
 	c.lineWidth = (this.grid.lineWidth || 1);
 	bstep = 2;
 	if(type=="az"){
-		maxb = (typeof this.projection.maxb==="number") ? this.projection.maxb : 90-bstep;
+		maxb = 90-bstep;
 		minb = 0;
 	}else{
 		maxb = 90-bstep;
@@ -2922,7 +2474,6 @@ function joinpoint(s,type,a,b,old,maxl){
 }
 
 VirtualSky.prototype.maxLine = function(f){
-	if(this.projection.id==="gnomic") return this.tall;
 	if(typeof f!=="number") f = 3;
 	return this.tall/f;
 };
