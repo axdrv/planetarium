@@ -1,0 +1,262 @@
+
+/* Read the comments */
+/* @import url(/assets/css/guidance.css); */
+/*--importing libs, local modules--*/
+@import url(/assets/styles/css/normalize.css);
+@import url(/assets/styles/css/project.css);
+/*--end importing libs, local modules--*/
+
+/*--connetcting fonts&icons--*/
+/* Connect below the font シ you choose for your site (¬‿¬ )*/
+@font-face {
+    font-family: 'Raleway'; 
+    src: url('/assets/styles/fonts/Raleway.ttf')  format('truetype');    
+} 
+@font-face {
+    font-family: 'Raleway'; 
+    src: url('/assets/styles/fonts/Raleway-Italic.ttf')  format('truetype');
+    font-style: italic;    
+}
+/*--end fonts connect--*/
+/*---general styles---*/
+
+:root {
+    /*--color scheme--*/
+    --l-base: #d5fcff;
+    --d-base: #505050;
+    --l-txt: #FFFFFF;
+    --d-txt: #21201F;
+    --l-accent: #FAFAFA; /*-- bbgd - blocks background--*/
+    --d-accent: #00CA50;    
+    --l-links: #73c1ef;
+    --d-links: #1e6893;
+    --l-disabled: #9b9b9b;
+    --d-disabled: #8d8d8d;
+    /*--end color scheme--*/
+    /*--colors for demo--*/
+    --intro-section: #48d458;   
+    /*--fonts--*/
+    --font-base: 'Raleway';
+    /*--end fonts--*/
+}
+html {
+    /* scroll-behavior: smooth; */
+    font-family: var(--font-base); 
+    font-size: 16px;
+    height: 100%;   
+}
+body {
+    height: 100%;  
+    position: relative;
+    font-family: var(--font-base), sans-serif; 
+    font-weight: 400;
+    color: var(--d-base);
+    background-color: var(--l-base); 
+    overflow: hidden;
+}
+body>* {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    
+}
+header-item, main>*, footer-item {
+    display: block;
+    width: 100%;
+}
+header, section, footer {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+/*-main-*/
+main {
+    width: inherit;
+    box-sizing: border-box;
+}
+
+/* section {
+    padding-top: 100px;
+    min-height: 90vh;
+} */
+/*-end of main-*/
+
+/*-general-*/
+/*--general-classes--*/
+/*---flex classes---*/
+.f-centered {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.f-column {
+    display: flex;
+    flex-flow: column;
+}
+.f-justified {
+    text-align: justify;
+}
+.f-aligned {
+    align-items: center;
+}
+.touch {
+    display: none;
+}
+/*---end of flex classes---*/
+/*--end of general classes--*/
+/*-end of general-*/
+/*--------------------*/
+/*-elements-*/
+.button, a.button {
+    display: inline-block;
+    font-weight: bold;
+    background: var(--d-txt);
+    color: var(--l-txt);
+}
+.button-l {
+    font-size: 2.05rem;
+    padding: 50px 128px;
+} 
+.button-m {    
+    font-size: 1.55rem;
+    padding: 0px 54px;
+}   
+.button-s {
+    font-size: 1.1rem;
+    padding: 0 51px;
+}
+/*---end of buttons---*/
+/*--icons--*/
+.icon-s, .icon-m, .icon-l, .icon-xl {
+    background-position: center;
+    background-repeat: no-repeat;
+}
+.icon-s {
+    width: 16px;
+    height: 16px;    
+    background-size: 14px;
+}
+.icon-m {
+    width: 24px;
+    height: 24px;
+    background-size: 18px;
+}
+.icon-l {
+    width: 32px;
+    height: 32px;
+    background-size: 28px;
+}
+.icon-xl {
+    width: 48px;
+    height: 48px;
+    background-size: 42px;
+}
+/*--end icons--*/
+/*---gaps---*/
+.gap-l {
+    height: 160px;
+}
+.gap-m {
+    height: 110px;
+}
+.gap-s {
+    height: 60px;
+}
+/*---end gaps---*/
+/*-end elements-*/
+
+/*--Typography--*/
+h1, h2, h3, h4, h5, h6, .bold {
+    font-weight: bold;
+}
+h1 {
+    font-size: 3rem;
+    line-height: 1;
+    margin: 0 4px 0 0;
+    padding: 0;
+}
+
+h2 {
+    font-size: 2rem;   
+}
+
+h3 {   
+    font-size: 1.5rem;
+}
+
+h4 {    
+    font-size: 1.25rem;
+    margin: 0.5rem;   
+}
+
+h5 {
+      font-size: 1.05rem;
+}
+h6 {
+    font-size: 0.85rem;
+}
+
+a,
+a:visited {
+    color: var(--l-links);
+    text-decoration: none;
+    word-wrap: break-all;
+}
+
+a:hover {
+    text-decoration: underline;
+    cursor: pointer;
+}
+a>img{
+    height: inherit;
+}
+ul>li {
+    padding: 4px;
+}
+
+/*--end of typography--*/
+
+
+/*--animations--*/
+
+/*--end animations--*/
+
+
+@media (max-width: 1199.98px) {
+    
+}
+
+@media (max-width: 991.98px) {
+    .wider991 {
+        display: none;
+    }
+    header, section, footer {
+        margin: 0 6%;
+    }
+}
+
+@media (max-width: 767.98px),
+(orientation: portrait) {
+    .wider768 {
+        display: none;
+    }
+    header, section, footer {
+        margin: 0 4%;
+    }
+}
+@media (max-width: 575.98px) {
+    .wider576 {
+        display: none;
+    }
+}
+
+/*--end of @queries--*/
+/*--animations--*/
+/*--end of animations--*/
+
+
+/*--test styles--*/
+/* header, main, footer, nav, section, div, form, input,  ul, li, p, h1, h2, h3, h4, h5, h6 {
+    border: 1px dashed lightblue    
+} */
+/*--end of test styles--*/
