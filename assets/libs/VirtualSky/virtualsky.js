@@ -156,7 +156,6 @@ function VirtualSky(input){
 	this.keyboard = true;				// Allow keyboard controls
 	this.mouse = true;					// Allow mouse controls
 	this.islive = false;				// Update the sky in real time
-	this.fullscreen = false;			// Should it take up the full browser window
 	this.transparent = false;			// Show the sky background or not
 	this.fps = 10;						// Number of frames per second when animating
 	this.callback = { geo:'', mouseenter:'', mouseout:'', contextmenu: '', cursor: '', click:'' };
@@ -627,7 +626,7 @@ VirtualSky.prototype.checkLoaded = function(){
 	// if(!this.lines && this.constellation.lines) this.load('lines',this.file.lines);
 
 	// Get the constellation line data
-	//if(!this.boundaries && this.constellation.boundaries)	this.load('boundaries',this.file.boundaries, function() {console.log(this.boundaries);});
+	//if(!this.boundaries && this.constellation.boundaries)	this.load('boundaries',this.file.boundaries, function() {});
 
 	// Get the meteor showers
 	if(!this.showers && this.meteorshowers) this.load('showers',this.file.showers);
@@ -686,18 +685,11 @@ VirtualSky.prototype.getPhrase = function(key,key2){
 VirtualSky.prototype.resize = function(w,h){
 	if(!this.canvas) return;
 	if(!w || !h){
-		if(this.fullscreen){
-			this.canvas.css({'width':0,'height':0});
-			w = window.innerWidth;
-			h = window.innerHeight;
-			this.canvas.css({'width':w+'px','height':h+'px'});
-		}else{
-			// We have to zap the width of the canvas to let it take the width of the container
-			this.canvas.css({'width':0,'height':0});
-			w = this.container.outerWidth();
-			h = this.container.outerHeight();
-			this.canvas.css({'width':w+'px','height':h+'px'});
-		}
+		// We have to zap the width of the canvas to let it take the width of the container
+		this.canvas.css({'width':0,'height':0});
+		w = this.container.outerWidth();
+		h = this.container.outerHeight();
+		this.canvas.css({'width':w+'px','height':h+'px'});
 	}else{
 		// Set the container size
 		this.container.css({'width':w+'px','height':h+'px'});
@@ -715,9 +707,7 @@ VirtualSky.prototype.setWH = function(w,h){
 	this.c.height = h;
 	this.wide = w;
 	this.tall = h;
-	this.changeFOV();
-	// DEPRECATED // Bug fix for IE 8 which sets a width of zero to a div within the <canvas>
-	// DEPRECATED if(this.ie && S.browser.version == 8) $('#'+this.idinner).find('div').css({'width':w,'height':h});
+	this.changeFOV();	
 	this.canvas.css({'width':w+'px','height':h+'px'});
 };
 VirtualSky.prototype.changeFOV = function(delta){
@@ -752,8 +742,6 @@ VirtualSky.prototype.createSky = function(){
 	this.container = S('#'+this.id);
 	this.times = this.astronomicalTimes();
 
-	if(this.fntfam) this.container.css({'font-family':this.fntfam});
-	if(this.fntsze) this.container.css({'font-size':this.fntsze});
 
 	if(this.container.length == 0){
 		// No appropriate container exists. So we'll make one.
@@ -880,8 +868,6 @@ VirtualSky.prototype.createSky = function(){
 				e.preventDefault();
 				e.data.sky.callback.contextmenu.call(e.data.sky,getXY(e.data.sky,e.originalEvent,this,e));
 			}
-		}).on('dblclick',{sky:this},function(e){
-			e.data.sky.toggleFullScreen();
 		}).on('mousemove',{sky:this},function(e){
 			e.preventDefault();
 			var s = e.data.sky;
@@ -890,14 +876,7 @@ VirtualSky.prototype.createSky = function(){
 			var theta,f,dr,matched;
 			if(s.mouse) s.canvas.css({cursor:'move'});
 			if(s.dragging && s.mouse){
-				if(s.polartype){
-					theta = Math.atan2(y-s.tall/2,x-s.wide/2);
-					if(!s.theta) s.theta = theta;
-					s.az_off -= (s.theta-theta)*s.r2d;
-					s.theta = theta;
-				}else{
-					if(typeof s.x=="number") s.az_off += (s.x-x)/4;
-				}
+				if(typeof s.x=="number"){s.az_off += (s.x-x)/4;}
 				s.az_off = s.az_off%360;
 				s.x = x;
 				s.y = y;				
@@ -942,15 +921,7 @@ VirtualSky.prototype.createSky = function(){
 			var y = e.originalEvent.touches[0].pageY;
 			var theta,f,dr;
 			if(s.dragging){
-				if(s.polartype){
-					theta = Math.atan2(y-s.tall/2,x-s.wide/2);
-					if(!s.theta) s.theta = theta;
-					s.az_off -= (s.theta-theta)*s.r2d;
-					s.theta = theta;
-				}else{
-					if(typeof s.x=="number")
-						s.az_off += (s.x-x)/4;
-				}
+				if(typeof s.x=="number"){s.az_off += (s.x-x)/4;}
 				s.az_off = s.az_off%360;
 				s.x = x;
 				s.y = y;
@@ -1464,7 +1435,6 @@ VirtualSky.prototype.vectorMultiply = function(A,B){
 };
 VirtualSky.prototype.setFont = function(){ this.ctx.font = this.fontsize()+"px "+this.canvas.css('font-family'); };
 VirtualSky.prototype.fontsize = function(){
-	if(this.fntsze) return parseInt(this.fntsze);
 	var m = Math.min(this.wide,this.tall);
 	return (m < 600) ? ((m < 500) ? ((m < 350) ? ((m < 300) ? ((m < 250) ? 9 : 10) : 11) : 12) : 14) : parseInt(this.container.css('font-size'));
 };
@@ -1504,7 +1474,7 @@ VirtualSky.prototype.drawImmediate = function(){
 
 	c.moveTo(0,0);
 	c.clearRect(0,0,this.wide,this.tall);
-	c.fillStyle = (this.polartype || this.fullsky) ? this.background : ((this.negative) ? white : black);
+	c.fillStyle = (this.negative) ? white : black;
 	c.fillRect(0,0,this.wide,this.tall);
 	c.fill();	
 
@@ -1777,9 +1747,7 @@ VirtualSky.prototype.drawLabel = function(x,y,d,colour,label){
 	var c = this.ctx;
 	if(colour.length > 0) c.fillStyle = colour;
 	c.lineWidth = 1.5;
-	var xoff = d;
-	if((this.polartype) && c.measureText) xoff = -c.measureText(label).width-3;
-	if((this.polartype) && x < this.wide/2) xoff = d;
+	var xoff = d;	
 	c.fillText(label,x+xoff,y-(d+2));
 	return this;
 };
@@ -1895,13 +1863,7 @@ VirtualSky.prototype.drawOne = function() {
 		a = b
 	}
 	posa = null;
-	if(posa && this.isVisible(posa.el) && this.isVisible(posb.el)){
-		if(!this.isPointBad(posa) && !this.isPointBad(posb)){
-			posb = this.radec2xy(points[0][0],points[0][1]);
-			if(Math.abs(posa.x-posb.x) < maxl && Math.abs(posa.y-posb.y) < maxl){
-				this.ctx.moveTo(posa.x,posa.y);}
-			}
-		}
+	
 	for(i = 0; i <= points.length; i++){
 		j = (i == points.length) ? 0 : i;
 		posb = this.radec2xy(points[j][0],points[j][1]);
@@ -2273,21 +2235,6 @@ VirtualSky.prototype.setLongitude = function(l){
 	this.longitude = {'deg':parseFloat(l),'rad':parseFloat(l)*this.d2r};
 	while(this.longitude.rad <= -Math.PI) this.longitude.rad += 2*Math.PI;
 	while(this.longitude.rad > Math.PI) this.longitude.rad -= 2*Math.PI;
-	return this;
-};
-
-
-VirtualSky.prototype.toggleFullScreen = function(){
-	if(fullScreenApi.isFullScreen()){
-		fullScreenApi.cancelFullScreen(this.container[0]);
-		this.fullscreen = false;
-		this.container.removeClass('fullscreen');
-	}else{
-		fullScreenApi.requestFullScreen(this.container[0]);
-		this.fullscreen = true;
-		this.container.addClass('fullscreen');
-	}
-
 	return this;
 };
 
