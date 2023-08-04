@@ -21,9 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
     planetarium = S.virtualsky();
 });
 
-window.addEventListener('resize', ()=>{
+// window.addEventListener('resize', ()=>{
 
-});
+// });
 window.addEventListener('scroll', ()=>{
 });
 window.addEventListener('click', ()=>{
