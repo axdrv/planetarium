@@ -166,7 +166,7 @@ function VirtualSky(input){
 	this.events = {};	// Let's add some default events
 
 	this.callback = { geo:'', mouseenter:'', mouseout:'', cursor: '', click:'' };
-	this.onePath = {};
+	
 
 
 	// Projection //muComment// refacted in first commit
@@ -221,6 +221,7 @@ function VirtualSky(input){
 	this.starsdeep = true;
 	this.lookup.star = [];
 	this.starnames = {};
+	this.paths = [];
 	// Data for stars < mag 4.5 or that are a vertex for a constellation line - 20 kB [id, mag, right ascension, declination]
 	// index with Hipparcos number
 	this.stars = this.convertStarsToRadians([[677,2.1,2.097,29.09],[746,2.3,2.295,59.15],[765,3.9,2.353,-45.75],
@@ -495,7 +496,7 @@ function VirtualSky(input){
 			'moon':'rgb(150,150,150)',
 			'cardinal':'rgba(163,228,255, 1)',
 			'constellation':"rgba(180,180,255,0.8)",
-			'constellationboundary':"rgba(100,100,255,0)",
+			'constellationboundary':"rgba(100,100,255, 0.2)",
 			'showers':"rgba(100,255,100,0.8)",
 			'galaxy':"rgba(100, 200, 255, 0.03)",
 			'az':"rgba(100,100,255,0.4)",
@@ -691,9 +692,15 @@ VirtualSky.prototype.hide = function(){ this.container.hide(); return this; };
 VirtualSky.prototype.show = function(){ this.container.show(); return this; };
 VirtualSky.prototype.toggle = function(){ this.container.toggle(); return this; };
 
-VirtualSky.prototype.isCursorInPath = function (path, x, y) {console.log(this.ctx.isPointInPath(path, x, y));}
+VirtualSky.prototype.detectConstellationUnderCursor = function (x, y) {
+	for (let p = 0; p<this.paths.length; p++) {
+		if (this.ctx.isPointInPath(this.paths[p], x, y)) {
+			console.log(this.paths[p].name);
+		}
+	}	
+}
 
-VirtualSky.prototype.createSky = function(){
+VirtualSky.prototype.createSky = function(){ 
 	this.container = S('#'+this.id);
 	this.times = this.astronomicalTimes();
 	if(this.container.length == 0){
@@ -750,7 +757,7 @@ VirtualSky.prototype.createSky = function(){
 			var s = e.data.sky;
 			var x = e.originalEvent.layerX;
 			var y = e.originalEvent.layerY;
-			s.isCursorInPath(s.onePath, x, y)
+			s.detectConstellationUnderCursor(x, y)
 			if(s.mouse) s.canvas.css({cursor:'move'});
 			if(s.dragging && s.mouse){
 				if(typeof s.x=="number"){s.az_off += (s.x-x)/4;}
@@ -1287,7 +1294,7 @@ VirtualSky.prototype.drawImmediate = function(){
 		//.drawGridlines("gal")
 		.drawConstellationLines()
 		//.drawConstellationBoundaries()
-		.drawOne();
+		.drawBoundaries();
 		//.drawEcliptic()
 		//.drawMeridian()
 		//.drawMeteorShowers()
@@ -1422,59 +1429,73 @@ VirtualSky.prototype.drawPlanet = function(x,y,d,colour,label){
 	c.fill();
 	return this;
 };
-VirtualSky.prototype.drawOne = function() {
-	let colour = this.col.constellationboundary
-	let one = this.boundaries[78];
-	this.onePath = new Path2D();	
-	this.ctx.beginPath();
-	this.ctx.strokeStyle = colour;
-	this.ctx.fillStyle = colour;
+VirtualSky.prototype.drawBoundaries = function() {
+	this.paths = [];
+	let bds = this.boundaries;
 	this.ctx.lineWidth = (this.constellation.boundaryWidth || 0.75);
 	this.ctx.lineCap = "round";
-	var posa,posb,a,b,d,atob,j,ra,dc,dra,ddc,points = [];
-	let maxl = this.maxLine(1);
-	for(let l = 1; l < one.length; l+=2){
-		b = [one[l],one[l+1]];
-		if(a){
-			atob = a[0]+','+a[1]+'-'+b[0]+','+b[1];
-		}
-		if(l>1) {
-			ra = (b[0]-a[0])%360;
-			if(ra > 180) ra = ra-360;
-			if(ra < -180) ra = ra+360;
-			dc = (b[1]-a[1]);
-			dra = ra/2;
-			ddc = dc/2;
-			for(i = 1; i <= 2; i++){
-				ra = a[0]+(i*dra);
-				if(ra < 0) ra += 360;
-				dc = a[1]+(i*ddc);
-				// Convert to J2000
-				d = this.fk1tofk5(ra*this.d2r,dc*this.d2r);
-				points.push([d[0],d[1]]);
+	//console.log(bds);
+	for (let bd=0; bd<bds.length; bd++) {
+		let colour = 'rgba('+bds[bd].length+', '+bds[bd].length+', '+bds[bd].length+', 0.5)'
+		let oneBD = bds[bd];
+		let onePath = new Path2D();
+		onePath.name = bds[bd][0];
+		this.ctx.strokeStyle = colour;
+		this.ctx.fillStyle = colour;
+		this.ctx.beginPath();
+		var posa,posb,a,b,d,atob,j,ra,dc,dra,ddc,points = [];
+		let maxl = this.maxLine(5);
+		for(let l = 1; l < oneBD.length; l+=2){
+			b = [oneBD[l],oneBD[l+1]];
+			if(a){
+				atob = a[0]+','+a[1]+'-'+b[0]+','+b[1];
 			}
-		}
-		a = b
-	}
-	posa = null;
-	
-	for(let i = 0; i <= points.length; i++){
-		j = (i == points.length) ? 0 : i;
-		posb = this.radec2xy(points[j][0],points[j][1]);
-		if(i==0 && this.isVisible(posb.el)) {
-			if(!this.isPointBad(posb)){ this.onePath.moveTo(posb.x,posb.y)}}
-		if(posa && this.isVisible(posa.el) && this.isVisible(posb.el)){
-			if(!this.isPointBad(posa) && !this.isPointBad(posb)){
-				// Basic error checking: constellations behind us often have very long lines so we'll zap them
-				if(Math.abs(posa.x-posb.x) < maxl && Math.abs(posa.y-posb.y) < maxl){
-					this.onePath.lineTo(posb.x,posb.y);
+			if(l>1) {
+				ra = (b[0]-a[0])%360;
+				if(ra > 180) ra = ra-360;
+				if(ra < -180) ra = ra+360;
+				dc = (b[1]-a[1]);
+				dra = ra/2;
+				ddc = dc/2;
+				for(i = 1; i <= 2; i++){
+					ra = a[0]+(i*dra);
+					if(ra < 0) ra += 360;
+					dc = a[1]+(i*ddc);
+					// Convert to J2000
+					d = this.fk1tofk5(ra*this.d2r,dc*this.d2r);
+					points.push([d[0],d[1]]);
 				}
 			}
+			a = b
 		}
-		posa = posb;
+		posa = null;
+		
+		for(let i = 0; i < points.length; i++){
+			//j = (i == points.length) ? 0 : i;
+			posb = this.radec2xy(points[i][0],points[i][1]);
+			if(i==0 && this.isVisible(posb.el)) {
+				if(!this.isPointBad(posb)){ onePath.moveTo(posb.x,posb.y)}}
+			if(posa && this.isVisible(posa.el) && this.isVisible(posb.el)){
+				if(!this.isPointBad(posa) && !this.isPointBad(posb)){
+					// Basic error checking: constellations behind us often have very long lines so we'll zap them
+					if(Math.abs(posa.x-posb.x) < maxl && Math.abs(posa.y-posb.y) < maxl){
+						onePath.lineTo(posb.x,posb.y);
+					}
+				}
+			}
+			if(i==points.length-1) {
+				onePath.closePath();
+				this.paths.push(onePath); 
+				//this.ctx.stroke(onePath);
+				this.ctx.fill(onePath);
+				points = [];
+			}
+			posa = posb;
+		}
+		
+				
 	}
-	this.ctx.stroke(this.onePath);
-	this.ctx.fill(this.onePath);
+	
 }
 
 VirtualSky.prototype.drawLabel = function(x,y,d,colour,label){
