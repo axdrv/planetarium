@@ -132,12 +132,14 @@ function VirtualSky(input){
 	this.r2d = 180.0/Math.PI; //radians to degrees
 
 	// Set location on the Earth
-	this.setLongitude(-33.33912);
+	this.setLongitude(103.33912);
 	this.setLatitude(45.18729);
 
 	// Toggles
 	this.spin = false;
-	this.constellation = { lines: true, boundaries: false, labels: false };	// Display constellations
+	this.constellation = { lines: true, boundaries: true, labels: false };	// Display constellations
+	this.current = []; //myComment// current constellation drawn via drawConstellation()
+	this.currentIdx = false;
 	this.meteorshowers = false;			// Display meteor shower radiants
 	this.showgalaxy = true;			// Display the Milky Way
 	this.showstars = true;				// Display current positions of the stars
@@ -456,7 +458,6 @@ function VirtualSky(input){
 		function(data) {
 			this.boundaries = data.boundaries;	
 		}
-		//,function() {console.log(this.boundaries);}
 	)
 	// loadind galaxy and store It without rendering
 	this.loadJSON(
@@ -464,7 +465,6 @@ function VirtualSky(input){
 		function(data) {
 			this.galaxy = data.galaxy;	
 		}
-		//,function() {console.log(this.boundaries);}
 	)
 	// Data for star names to display (if showstarlabels is set to true) - indexed by Hipparcos number
 
@@ -496,8 +496,8 @@ function VirtualSky(input){
 			'moon':'rgb(150,150,150)',
 			'cardinal':'rgba(163,228,255, 1)',
 			'constellation':"rgba(180,180,255,0.8)",
-			'constellationboundary':"rgba(100,100,255, 0.2)",
-			'showers':"rgba(100,255,100,0.8)",
+			'constellationboundary':"rgba(100,255, 255, 0.5)",
+			'showers':"rgba(100,255,100,0.8)", 
 			'galaxy':"rgba(100, 200, 255, 0.03)",
 			'az':"rgba(100,100,255,0.4)",
 			'eq':"rgba(255,100,100,0.4)",
@@ -692,10 +692,15 @@ VirtualSky.prototype.hide = function(){ this.container.hide(); return this; };
 VirtualSky.prototype.show = function(){ this.container.show(); return this; };
 VirtualSky.prototype.toggle = function(){ this.container.toggle(); return this; };
 
-VirtualSky.prototype.detectConstellationUnderCursor = function (x, y) {
+VirtualSky.prototype.detectConstellationUnderCursor = 
+function (x, y) {
+	if(this.currentIdx==false) this.currentIdx=true;
 	for (let p = 0; p<this.paths.length; p++) {
+		let cor = p;
+		if (p>75) cor = p-1 //corrected boundary index for drawing constellation bigger 'Ser1'
 		if (this.ctx.isPointInPath(this.paths[p], x, y)) {
-			console.log(this.paths[p].name);
+			if (this.currentIdx == cor) {return}
+			this.drawImmediate(cor);
 		}
 	}	
 }
@@ -784,6 +789,8 @@ VirtualSky.prototype.createSky = function(){
 			s.theta = "";
 		}).on('mouseout',{sky:this},function(e){
 			var s = e.data.sky;
+			this.currentIdx = false;
+			s.drawImmediate(-1);
 			s.dragging = false;
 			s.mouseover = false;
 			s.x = "";
@@ -1257,7 +1264,8 @@ VirtualSky.prototype.draw = function(){
 	this.pendingRefresh = window.setTimeout(this.drawImmediate.bind(this), 20);
 };
 
-VirtualSky.prototype.drawImmediate = function(){
+VirtualSky.prototype.drawImmediate = function(cor){
+	//myCode cor is special for drawconstellation
 	// Don't bother drawing anything if there is no physical area to draw on
 	if(this.pendingRefresh !== undefined){
 		window.clearTimeout(this.pendingRefresh);
@@ -1292,9 +1300,9 @@ VirtualSky.prototype.drawImmediate = function(){
 		//.drawGridlines("az")
 		//.drawGridlines("eq")
 		//.drawGridlines("gal")
-		.drawConstellationLines()
-		//.drawConstellationBoundaries()
-		.drawBoundaries();
+		//.drawConstellationLines()
+		.drawBoundaries()
+		.drawConstellation(cor)		
 		//.drawEcliptic()
 		//.drawMeridian()
 		//.drawMeteorShowers()
@@ -1305,6 +1313,7 @@ VirtualSky.prototype.drawImmediate = function(){
 	//c.fillStyle = txtcolour;
 	c.lineWidth = 1.5;
 	this.container.css({'font-size':this.fontsize()+'px','position':'relative'});
+
 	return this;
 };
 VirtualSky.prototype.drawStars = function(){
@@ -1429,14 +1438,15 @@ VirtualSky.prototype.drawPlanet = function(x,y,d,colour,label){
 	c.fill();
 	return this;
 };
+
+//myCode// calculations taken from drawConstellationBoundaries function which is  deleted and can be restored from p.virtualsky.js
 VirtualSky.prototype.drawBoundaries = function() {
 	this.paths = [];
 	let bds = this.boundaries;
 	this.ctx.lineWidth = (this.constellation.boundaryWidth || 0.75);
 	this.ctx.lineCap = "round";
-	//console.log(bds);
 	for (let bd=0; bd<bds.length; bd++) {
-		let colour = 'rgba('+bds[bd].length+', '+bds[bd].length+', '+bds[bd].length+', 0.5)'
+		let colour = 'rgba('+bds[bd].length+', '+bds[bd].length+', '+bds[bd].length+', 0)';
 		let oneBD = bds[bd];
 		let onePath = new Path2D();
 		onePath.name = bds[bd][0];
@@ -1492,21 +1502,62 @@ VirtualSky.prototype.drawBoundaries = function() {
 			}
 			posa = posb;
 		}
-		
-				
 	}
-	
+	return this;
+}
+VirtualSky.prototype.drawConstellation = function(idx) {
+	if (this.currentIdx==false || idx==-1) return;	
+	this.ctx.beginPath();
+	this.ctx.strokeStyle = this.col.constellation;
+	this.ctx.fillStyle = this.col.constellation;
+	this.ctx.lineCap = "round";
+	this.ctx.lineWidth = (this.constellation.lineWidth || 0.75);	
+	this.current = this.lines[idx];
+	let maxl = this.maxLine(5);
+	let posa,posb,a,b,l,idx1,idx2,s;
+	for(l = 3; l < this.current.length; l+=2){
+		a = -1;
+		b = -1;
+		idx1 = ''+this.current[l]+'';
+		idx2 = ''+this.current[l+1]+'';
+		if(!this.hipparcos[idx1]){
+			for(s = 0; s < this.stars.length; s++){
+				if(this.stars[s][0] == this.current[l]){
+					this.hipparcos[idx1] = s;
+					break;
+				}
+			}
+		}
+		if(!this.hipparcos[idx2]){
+			for(s = 0; s < this.stars.length; s++){
+				if(this.stars[s][0] == this.current[l+1]){
+					this.hipparcos[idx2] = s;
+					break;
+				}
+			}
+		}
+		a = this.hipparcos[idx1];
+		b = this.hipparcos[idx2];
+		if(a >= 0 && b >= 0 && a < this.stars.length && b < this.stars.length){
+			posa = this.radec2xy(this.stars[a][2], this.stars[a][3]);
+			posb = this.radec2xy(this.stars[b][2], this.stars[b][3]);
+			if(this.isVisible(posa.el) && this.isVisible(posb.el)){
+				if(!this.isPointBad(posa) && !this.isPointBad(posb)){
+					// Basic error checking: constellations behind us often have very long lines so we'll zap them
+					if(Math.abs(posa.x-posb.x) < maxl && Math.abs(posa.y-posb.y) < maxl){
+						this.ctx.moveTo(posa.x,posa.y);
+						this.ctx.lineTo(posb.x,posb.y);
+					}
+				}
+			}
+		}
+	}
+	this.ctx.stroke();
+	this.currentIdx = idx;//send number ConstellationUnder
+	return this;
 }
 
-VirtualSky.prototype.drawLabel = function(x,y,d,colour,label){
-	if(label===undefined) return this;
-	var c = this.ctx;
-	if(colour.length > 0) c.fillStyle = colour;
-	c.lineWidth = 1.5;
-	var xoff = d;	
-	c.fillText(label,x+xoff,y-(d+2));
-	return this;
-};
+
 VirtualSky.prototype.drawConstellationLines = function(colour){
 	if(!(this.constellation.lines || this.constellation.labels)) return this;
 	if(!colour) colour = this.col.constellation;
@@ -1574,106 +1625,106 @@ VirtualSky.prototype.drawConstellationLines = function(colour){
 	x.stroke();
 	return this;
 };
-// Draw the boundaries of constellations
-// Input: colour (e.g. "rgb(255,255,0)")
-// We should have all the boundary points stored in this.boundaries. As many of the constellations
-// will share boundaries we don't want to bother drawing lines that we've already done so we will
-// keep a record of the lines we've drawn as we go. As some segments may be large on the sky we will
-// interpolate a few points between so that boundaries follow the curvature of the projection better.
-// As the boundaries are in FK1 we will calculate the J2000 positions once and keep them cached as
-// this speeds up the re-drawing as the user moves the sky. We assume that the user's session << time
-// between epochs.
 
-VirtualSky.prototype.drawConstellationBoundaries = function(colour){
-	if(!this.constellation.boundaries) return this;
-	if(!colour) colour = this.col.constellationboundary;
-	this.ctx.beginPath();
-	this.ctx.strokeStyle = colour;
-	this.ctx.fillStyle = colour;
-	this.ctx.lineWidth = (this.constellation.boundaryWidth || 0.75);
-	this.ctx.lineCap = "round";
-	if(typeof this.boundaries!=="object") return this;
-	var posa,posb,a,b,l,c,d,atob,btoa,move,i,j,ra,dc,dra,ddc,points;
-	// Keys defining a line in both directions
-	atob = "";
-	btoa = "";
-	var n = 5;
-	var maxl = this.maxLine(5);
-	// Create a holder for the constellation boundary points i.e. a cache of position calculations
-	
-	if(!this.constellation.bpts) this.constellation.bpts = new Array(this.boundaries.length);
-	// We'll record which boundary lines we've already processed
-	var cbdone = [];
-	for(c = 0; c < this.boundaries.length; c++){
-		if(typeof this.boundaries!=="string" && c < this.boundaries.length){
-			if(this.constellation.bpts[c]){
-				// Use the old array
-				points = this.constellation.bpts[c];
-			}else{
-				// Create a new array of points
-				points = [];
-				for(l = 1; l < this.boundaries[c].length; l+=2){
-					b = [this.boundaries[c][l],this.boundaries[c][l+1]];
-					if(a){
-						atob = a[0]+','+a[1]+'-'+b[0]+','+b[1];
-						btoa = b[0]+','+b[1]+'-'+a[0]+','+a[1];
-					}
-					if(l > 1){
-						move = (cbdone[atob] || cbdone[btoa]);
-						if(typeof move==="undefined") move = true;
-						ra = (b[0]-a[0])%360;
-						if(ra > 180) ra = ra-360;
-						if(ra < -180) ra = ra+360;
-						dc = (b[1]-a[1]);
+// VirtualSky.prototype.drawConstellationBoundaries = function(colour){
+// 	if(!this.constellation.boundaries) return this;
+// 	if(!colour) colour = this.col.constellationboundary;
+// 	this.ctx.beginPath();
+// 	this.ctx.strokeStyle = colour;
+// 	this.ctx.fillStyle = colour;
+// 	this.ctx.lineWidth = (this.constellation.boundaryWidth || 0.75);
+// 	this.ctx.lineCap = "round";
+// 	if(typeof this.boundaries!=="object") return this;
+// 	var posa,posb,a,b,l,c,d,atob,btoa,move,i,j,ra,dc,dra,ddc,points;
+// 	// Keys defining a line in both directions
+// 	atob = "";
+// 	btoa = "";
+// 	var n = 5;
+// 	var maxl = this.maxLine(5);
+// 	// Create a holder for the constellation boundary points i.e. a cache of position calculations
+// 	if(!this.constellation.bpts) this.constellation.bpts = new Array(this.boundaries.length);
+// 	// We'll record which boundary lines we've already processed
+// 	var cbdone = [];
+// 	for(c = 0; c < this.boundaries.length; c++){
+// 		if(typeof this.boundaries!=="string" && c < this.boundaries.length){
 
-						// If we've already done this line we'll only calculate
-						// two points on the line otherwise we'll do 5
-						n = (move) ? 5 : 2;
-						if(ra/2 > n) n = parseInt(ra);
-						if(dc/2 > n) n = parseInt(dc);
+// 			if(this.constellation.bpts[c]){
+// 				// Use the old array
+// 				points = this.constellation.bpts[c];
+// 			}else{
+// 				// Create a new array of points
+// 				points = [];
+// 				for(l = 1; l < this.boundaries[c].length; l+=2){
+// 					b = [this.boundaries[c][l],this.boundaries[c][l+1]];
+// 					if(a){
+// 						atob = a[0]+','+a[1]+'-'+b[0]+','+b[1];
+// 						btoa = b[0]+','+b[1]+'-'+a[0]+','+a[1];
+// 					}
+// 					if(l > 1){
+// 						move = (cbdone[atob] || cbdone[btoa]);
+// 						if(typeof move==="undefined") move = true;
+// 						ra = (b[0]-a[0])%360;
+// 						if(ra > 180) ra = ra-360;
+// 						if(ra < -180) ra = ra+360;
+// 						dc = (b[1]-a[1]);
 
-						dra = ra/n;
-						ddc = dc/n;
+// 						// If we've already done this line we'll only calculate
+// 						// two points on the line otherwise we'll do 5
+// 						n = (move) ? 5 : 2;
+// 						if(ra/2 > n) n = parseInt(ra);
+// 						if(dc/2 > n) n = parseInt(dc);
 
-						for(i = 1; i <= n; i++){
-							ra = a[0]+(i*dra);
-							if(ra < 0) ra += 360;
-							dc = a[1]+(i*ddc);
-							// Convert to J2000
-							d = this.fk1tofk5(ra*this.d2r,dc*this.d2r);
-							points.push([d[0],d[1],move]);
-						}
-					}
-					// Mark this line as drawn
-					cbdone[atob] = true;
-					cbdone[btoa] = true;
-					a = b;
-				}
-				this.constellation.bpts[c] = points;
-			}
-			posa = null;
-			// Now loop over joining the points
-			for(i = 0; i <= points.length; i++){
-				j = (i == points.length) ? 0 : i;
-				posb = this.radec2xy(points[j][0],points[j][1]);
-				if(posa && this.isVisible(posa.el) && this.isVisible(posb.el) && points[j][2]){
-					if(!this.isPointBad(posa) && !this.isPointBad(posb)){
-						// Basic error checking: constellations behind us often have very long lines so we'll zap them
-						if(Math.abs(posa.x-posb.x) < maxl && Math.abs(posa.y-posb.y) < maxl){
-							this.ctx.moveTo(posa.x,posa.y);
-							this.ctx.lineTo(posb.x,posb.y);
-						}
-					}
-				}
-				posa = posb;
-			}
-		}
-	}
-	cbdone = [];
-	this.ctx.stroke();
-	
+// 						dra = ra/n;
+// 						ddc = dc/n;
+
+// 						for(i = 1; i <= n; i++){
+// 							ra = a[0]+(i*dra);
+// 							if(ra < 0) ra += 360;
+// 							dc = a[1]+(i*ddc);
+// 							// Convert to J2000
+// 							d = this.fk1tofk5(ra*this.d2r,dc*this.d2r);
+// 							points.push([d[0],d[1],move]);
+// 						}
+// 					}
+// 					// Mark this line as drawn
+// 					cbdone[atob] = true;
+// 					cbdone[btoa] = true;
+// 					a = b;
+// 				}
+// 				this.constellation.bpts[c] = points;
+// 			}
+// 			posa = null;
+// 			// Now loop over joining the points
+// 			for(i = 0; i <= points.length; i++){
+// 				j = (i == points.length) ? 0 : i;
+// 				posb = this.radec2xy(points[j][0],points[j][1]);
+// 				if(posa && this.isVisible(posa.el) && this.isVisible(posb.el) && points[j][2]){
+// 					if(!this.isPointBad(posa) && !this.isPointBad(posb)){
+// 						// Basic error checking: constellations behind us often have very long lines so we'll zap them
+// 						if(Math.abs(posa.x-posb.x) < maxl && Math.abs(posa.y-posb.y) < maxl){
+// 							this.ctx.moveTo(posa.x,posa.y);
+// 							this.ctx.lineTo(posb.x,posb.y);
+// 						}
+// 					}
+// 				}
+// 				posa = posb;
+// 			}
+// 		}
+// 	}
+// 	cbdone = [];
+// 	this.ctx.stroke();
+// 	return this;
+// }
+VirtualSky.prototype.drawLabel = function(x,y,d,colour,label){
+	if(label===undefined) return this;
+	var c = this.ctx;
+	if(colour.length > 0) c.fillStyle = colour;
+	c.lineWidth = 1.5;
+	var xoff = d;	
+	c.fillText(label,x+xoff,y-(d+2));
 	return this;
 };
+
 VirtualSky.prototype.drawGalaxy = function(colour){
 	if(!this.galaxy || !this.showgalaxy) return this;
 	if(!colour) colour = this.col.galaxy;
@@ -2181,7 +2232,7 @@ function convertTZ(s){
 	}
 	return s;
 }
-
+	
 
 S.virtualsky = function(placeholder,input) {
 	if(typeof input==="object") input.container = placeholder;
@@ -2195,5 +2246,4 @@ S.virtualsky = function(placeholder,input) {
 };
 
 S.virtualsky.plugins = [];
-
 })(S);
