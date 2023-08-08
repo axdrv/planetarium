@@ -139,13 +139,13 @@ function VirtualSky(input){
 	this.spin = false;
 	this.constellation = { lines: true, boundaries: true, labels: false };	// Display constellations
 	this.current = []; //myComment// current constellation drawn via drawConstellation()
-	this.currentIdx = false;
+	this.currentIdx = -1;
 	this.meteorshowers = false;			// Display meteor shower radiants
 	this.showgalaxy = true;			// Display the Milky Way
 	this.showstars = true;				// Display current positions of the stars
 	this.showstarlabels = false;		// Display names for named stars
 	this.showplanets = true;			// Display current positions of the planets
-	this.showplanetlabels = true;		// Display names for planets
+	this.showplanetlabels = false;		// Display names for planets
 	this.scalestars = 1.4;				// A scale factor by which to increase the star sizes
 	this.ground = false;
 	this.grid = { az: false, eq: false, gal: false, step: 10 };	// Display grids
@@ -692,15 +692,17 @@ VirtualSky.prototype.hide = function(){ this.container.hide(); return this; };
 VirtualSky.prototype.show = function(){ this.container.show(); return this; };
 VirtualSky.prototype.toggle = function(){ this.container.toggle(); return this; };
 
+
+//myCode// based on boundaries finding which constellation is under cursor
 VirtualSky.prototype.detectConstellationUnderCursor = 
 function (x, y) {
-	if(this.currentIdx==false) this.currentIdx=true;
+	//if(this.currentIdx==-1) this.currentIdx=true;
 	for (let p = 0; p<this.paths.length; p++) {
 		let correctedIndex = p;
 		if (p>75) correctedIndex = p-1 //corrected boundary index for drawing constellation with index bigger for 'Ser1'
 		if (this.ctx.isPointInPath(this.paths[p], x, y)) {
 			if (this.currentIdx == correctedIndex) {return}
-			//this.currentIdx = correctedIndex
+			this.currentIdx = correctedIndex
 			this.draw(correctedIndex);
 		}
 	}	
@@ -726,8 +728,7 @@ VirtualSky.prototype.createSky = function(){
 	this.idinner = this.id+'_inner';
 	this.container.html('<canvas id="'+this.idinner+'" style="position: absolute;display:block;"></canvas>');
 	this.canvas = S('#'+this.idinner);
-	this.c = document.getElementById(this.idinner);
-
+	this.c = document.getElementById(this.idinner);	
 	if(this.c && this.c.getContext){
 		this.setWH(this.wide,this.tall);
 		var ctx = this.ctx = this.c.getContext('2d');
@@ -754,7 +755,7 @@ VirtualSky.prototype.createSky = function(){
 			e.y = o.pageY - el.offset().top - window.scrollY;
 			return getXYProperties(e,sky);
 		}
-
+		
 		S("#"+this.idinner).on('click',{sky:this},function(e){
 			var p = getXY(e.data.sky,e.originalEvent,this,e);
 			if(e.data.sky.callback.click) e.data.sky.callback.click.call(e.data.sky,getXY(e.data.sky,e.originalEvent,this,e));
@@ -763,7 +764,7 @@ VirtualSky.prototype.createSky = function(){
 			var s = e.data.sky;
 			var x = e.originalEvent.layerX;
 			var y = e.originalEvent.layerY;
-			if(!s.dragging) s.detectConstellationUnderCursor(x, y)
+			if(!s.dragging) s.detectConstellationUnderCursor(x, y);
 			if(s.mouse) s.canvas.css({cursor:'move'});
 			if(s.dragging && s.mouse){
 				if(typeof s.x=="number"){s.az_off += (s.x-x)/4;}
@@ -778,11 +779,10 @@ VirtualSky.prototype.createSky = function(){
 				e.data.sky.callback.cursor.call(this,p);
 			}
 		}).on('mouseover', {sky:this}, function(e) {
-			console.log(e.originalEvent.layerX, e.originalEvent.layerY);
 		}).on('mousedown',{sky:this},function(e){
-			if(e.originalEvent.buttons === 1){
-				e.data.sky.dragging = true;
-			}else if(e.originalEvent.buttons === 2){}
+			// if(e.originalEvent.buttons === 1){
+			// 	e.data.sky.dragging = true;
+			// }else if(e.originalEvent.buttons === 2){}
 		}).on('mouseup',{sky:this},function(e){
 			var s = e.data.sky;
 			s.dragging = false;
@@ -791,14 +791,14 @@ VirtualSky.prototype.createSky = function(){
 			s.theta = "";
 		}).on('mouseout',{sky:this},function(e){
 			var s = e.data.sky;
-			this.currentIdx = false;
-			s.draw(-1);
+			s.currentIdx = -1;
+			s.draw(s.currentIdx);
 			s.dragging = false;
 			s.mouseover = false;
 			s.x = "";
 			s.y = "";
 			if(typeof s.callback.mouseout=="function") s.callback.mouseout.call(s);
-		}).on('mouseenter',{sky:this},function(e){
+		}).on('mouseenter',{sky:this},function(e){			
 			var s = e.data.sky;
 			s.mouseover = true;
 			if(typeof s.callback.mouseenter=="function") s.callback.mouseenter.call(s);
@@ -816,7 +816,7 @@ VirtualSky.prototype.createSky = function(){
 				s.draw(this.currentIdx);
 			}
 		}).on('touchstart',{sky:this},function(e){
-			e.data.sky.dragging = true;			
+			//e.data.sky.dragging = true;			
 		}).on('touchend',{sky:this},function(e){
 			e.data.sky.dragging = false;
 			e.data.sky.x = "";
@@ -824,9 +824,249 @@ VirtualSky.prototype.createSky = function(){
 			e.data.sky.theta = "";
 		});		
 	}
-	//this.spinIt(25.6)
+	this.spinIt(25.6)
+};
+VirtualSky.prototype.draw = function(ucci){ // from this paths under cursor constellation index
+	// Redraw within 20ms. Used to avoid redraw pilling up, introducing vast lag	
+	if(this.pendingRefresh !== undefined) return;
+	this.pendingRefresh = window.setTimeout(this.drawImmediate.bind(this, ucci), 20);
 };
 
+VirtualSky.prototype.drawImmediate = function(idx){
+	//myCode cor is special for drawconstellation
+	// Don't bother drawing anything if there is no physical area to draw on
+	if(this.pendingRefresh !== undefined){
+		window.clearTimeout(this.pendingRefresh);
+		this.pendingRefresh = undefined;
+	}
+
+	if(this.wide <= 0 || this.tall <= 0) return this;
+	if(!(this.c && this.c.getContext)) return this;
+
+	var white = this.col.white;
+	var black = this.col.black;
+
+	// Shorthands
+	var c = this.ctx;
+	var c2 = this.ctx2;
+
+	c.moveTo(0,0);
+	c.clearRect(0,0,this.wide,this.tall);
+	c.fillStyle = black;
+	c.fillRect(0,0,this.wide,this.tall);
+	c.fill();	
+	this.updateSkyGradient();
+	c.beginPath();
+	c.fillStyle = this.skygrad;
+	// draw shapes
+	c.fillRect(0,0,this.wide,this.tall);
+	c.closePath();	
+
+	this.drawStars()
+		.drawGalaxy()
+		.drawPlanets()
+		//.drawGridlines("az")
+		//.drawGridlines("eq")
+		//.drawGridlines("gal")
+		//.drawConstellationLines()
+		.drawBoundaries()
+		.drawConstellation(idx)		
+		//.drawEcliptic()
+		//.drawMeridian()
+		//.drawMeteorShowers()
+
+	var txtcolour = (this.color!="") ? (this.color) : this.col.txt;
+	var fontsize = this.fontsize();
+	
+	//c.fillStyle = txtcolour;
+	c.lineWidth = 1.5;
+	this.container.css({'font-size':this.fontsize()+'px','position':'relative'});
+	return this;
+};
+
+//myCode// calculations taken from drawConstellationBoundaries function which is  deleted and can be restored from p.virtualsky.js
+VirtualSky.prototype.drawBoundaries = function() {
+	this.paths = [];
+	let bds = this.boundaries;
+	this.ctx.lineWidth = (this.constellation.boundaryWidth || 0.75);
+	this.ctx.lineCap = "round";
+	for (let bd=0; bd<bds.length; bd++) {
+		//let colour = 'rgba('+bds[bd].length+', '+bds[bd].length+', '+bds[bd].length+', 0)';
+		let colour = 'transparent';
+		let oneBD = bds[bd];
+		let onePath = new Path2D();		
+		this.ctx.strokeStyle = colour;
+		this.ctx.fillStyle = colour;
+		this.ctx.beginPath();
+		var posa,posb,a,b,d,atob,j,ra,dc,dra,ddc,points = [];
+		let maxl = this.maxLine(5);
+		for(let l = 1; l < oneBD.length; l+=2){
+			b = [oneBD[l],oneBD[l+1]];
+			if(a){
+				atob = a[0]+','+a[1]+'-'+b[0]+','+b[1];
+			}
+			if(l>1) {
+				ra = (b[0]-a[0])%360;
+				if(ra > 180) ra = ra-360;
+				if(ra < -180) ra = ra+360;
+				dc = (b[1]-a[1]);
+				dra = ra/2;
+				ddc = dc/2;
+				for(i = 1; i <= 2; i++){
+					ra = a[0]+(i*dra);
+					if(ra < 0) ra += 360;
+					dc = a[1]+(i*ddc);
+					// Convert to J2000
+					d = this.fk1tofk5(ra*this.d2r,dc*this.d2r);
+					points.push([d[0],d[1]]);
+				}
+			}
+			a = b
+		}
+		posa = null;
+		
+		for(let i = 0; i < points.length; i++){
+			posb = this.radec2xy(points[i][0],points[i][1]);
+			if(i==0 && this.isVisible(posb.el)) {
+				if(!this.isPointBad(posb)){ onePath.moveTo(posb.x,posb.y)}}
+			if(posa && this.isVisible(posa.el) && this.isVisible(posb.el)){
+				if(!this.isPointBad(posa) && !this.isPointBad(posb)){
+					// Basic error checking: constellations behind us often have very long lines so we'll zap them
+					if(Math.abs(posa.x-posb.x) < maxl && Math.abs(posa.y-posb.y) < maxl){
+						onePath.lineTo(posb.x,posb.y);
+					}
+				}
+			}
+			if(i==points.length-1) {
+				onePath.closePath();				
+				this.paths.push(onePath); 
+				this.ctx.fill(onePath);
+				points = [];
+			}
+			posa = posb;
+		}
+	}
+	return this;
+}
+VirtualSky.prototype.drawConstellation = function(idx) {
+	if (this.currentIdx==-1 || idx==-1) return;	
+	this.ctx.beginPath();
+	this.ctx.strokeStyle = this.col.constellation;
+	this.ctx.fillStyle = this.col.constellation;
+	this.ctx.lineCap = "round";
+	this.ctx.lineWidth = (this.constellation.lineWidth || 0.75);	
+	this.current = this.lines[idx];
+	let maxl = this.maxLine();
+	let posa,posb,a,b,l,idx1,idx2,s;
+	for(l = 3; l < this.current.length; l+=2){
+		a = -1;
+		b = -1;
+		idx1 = ''+this.current[l]+'';
+		idx2 = ''+this.current[l+1]+'';
+		if(!this.hipparcos[idx1]){
+			for(s = 0; s < this.stars.length; s++){
+				if(this.stars[s][0] == this.current[l]){
+					this.hipparcos[idx1] = s;
+					break;
+				}
+			}
+		}
+		if(!this.hipparcos[idx2]){
+			for(s = 0; s < this.stars.length; s++){
+				if(this.stars[s][0] == this.current[l+1]){
+					this.hipparcos[idx2] = s;
+					break;
+				}
+			}
+		}
+		a = this.hipparcos[idx1];
+		b = this.hipparcos[idx2];
+		if(a >= 0 && b >= 0 && a < this.stars.length && b < this.stars.length){
+			posa = this.radec2xy(this.stars[a][2], this.stars[a][3]);
+			posb = this.radec2xy(this.stars[b][2], this.stars[b][3]);
+			if(this.isVisible(posa.el) && this.isVisible(posb.el)){
+				if(!this.isPointBad(posa) && !this.isPointBad(posb)){
+					// Basic error checking: constellations behind us often have very long lines so we'll zap them
+					if(Math.abs(posa.x-posb.x) < maxl && Math.abs(posa.y-posb.y) < maxl){
+						this.ctx.moveTo(posa.x,posa.y);
+						this.ctx.lineTo(posb.x,posb.y);
+					}
+				}
+			}
+		}
+	}
+	this.ctx.stroke();
+	this.currentIdx = idx;//send number Constellation Under Cursor
+	return this;
+}
+
+VirtualSky.prototype.drawConstellationLines = function(colour){
+	if(!(this.constellation.lines || this.constellation.labels)) return this;
+	if(!colour) colour = this.col.constellation;
+	var x = this.ctx;
+	x.beginPath();
+	x.strokeStyle = colour;
+	x.fillStyle = colour;
+	this.ctx.lineCap = "round";
+	x.lineWidth = (this.constellation.lineWidth || 0.75);
+	var fontsize = this.fontsize();
+	if(typeof this.lines!=="object") return this;
+	var pos,posa,posb,a,b,l,idx1,idx2,s;
+	var maxl = this.maxLine();
+	for(var c = 0; c < this.lines.length; c++){
+		if(this.constellation.lines){
+			for(l = 3; l < this.lines[c].length; l+=2){
+				a = -1;
+				b = -1;
+				idx1 = ''+this.lines[c][l]+'';
+				idx2 = ''+this.lines[c][l+1]+'';
+				if(!this.hipparcos[idx1]){
+					for(s = 0; s < this.stars.length; s++){
+						if(this.stars[s][0] == this.lines[c][l]){
+							this.hipparcos[idx1] = s;
+							break;
+						}
+					}
+				}
+				if(!this.hipparcos[idx2]){
+					for(s = 0; s < this.stars.length; s++){
+						if(this.stars[s][0] == this.lines[c][l+1]){
+							this.hipparcos[idx2] = s;
+							break;
+						}
+					}
+				}
+				a = this.hipparcos[idx1];
+				b = this.hipparcos[idx2];
+				if(a >= 0 && b >= 0 && a < this.stars.length && b < this.stars.length){
+					posa = this.radec2xy(this.stars[a][2], this.stars[a][3]);
+					posb = this.radec2xy(this.stars[b][2], this.stars[b][3]);
+					if(this.isVisible(posa.el) && this.isVisible(posb.el)){
+						if(!this.isPointBad(posa) && !this.isPointBad(posb)){
+							// Basic error checking: constellations behind us often have very long lines so we'll zap them
+							if(Math.abs(posa.x-posb.x) < maxl && Math.abs(posa.y-posb.y) < maxl){
+								x.moveTo(posa.x,posa.y);
+								x.lineTo(posb.x,posb.y);
+							}
+						}
+					}
+				}
+			}
+		}
+		//myComment// turn labels by set this.constellations {labels: false} line 140
+		if(this.constellation.labels){
+			pos = this.radec2xy(this.lines[c][1]*this.d2r,this.lines[c][2]*this.d2r);
+			if(this.isVisible(pos.el)){
+				var label = this.getPhrase('constellations',this.lines[c][0]);
+				var xoff = (x.measureText) ? -x.measureText(label).width/2 : 0;
+				x.fillText(label,pos.x+xoff,pos.y-fontsize/2);
+				x.fill();
+			}
+		}
+	}
+	x.stroke();
+	return this;
+};
 
 //myComment// CONVERTING SECTION
 // Our stars are stored in decimal degrees so we will convert them here
@@ -1174,64 +1414,7 @@ VirtualSky.prototype.vectorMultiply = function(A,B){
 //VirtualSky.prototype.setFont = function(){ this.ctx.font = this.fontsize()+"px "+this.canvas.css('font-family'); };
 
 
-VirtualSky.prototype.draw = function(ucci){ // from this paths under cursor constellation index
-	// Redraw within 20ms. Used to avoid redraw pilling up, introducing vast lag	
-	if(this.pendingRefresh !== undefined) return;
-	this.pendingRefresh = window.setTimeout(this.drawImmediate.bind(this, ucci), 20);
-};
 
-VirtualSky.prototype.drawImmediate = function(idx){
-	//myCode cor is special for drawconstellation
-	// Don't bother drawing anything if there is no physical area to draw on
-	if(this.pendingRefresh !== undefined){
-		window.clearTimeout(this.pendingRefresh);
-		this.pendingRefresh = undefined;
-	}
-
-	if(this.wide <= 0 || this.tall <= 0) return this;
-	if(!(this.c && this.c.getContext)) return this;
-
-	var white = this.col.white;
-	var black = this.col.black;
-
-	// Shorthands
-	var c = this.ctx;
-	var c2 = this.ctx2;
-
-	c.moveTo(0,0);
-	c.clearRect(0,0,this.wide,this.tall);
-	c.fillStyle = black;
-	c.fillRect(0,0,this.wide,this.tall);
-	c.fill();	
-	this.updateSkyGradient();
-	c.beginPath();
-	c.fillStyle = this.skygrad;
-	// draw shapes
-	c.fillRect(0,0,this.wide,this.tall);
-	c.closePath();	
-
-	this.drawStars()
-		.drawGalaxy()
-		.drawPlanets()
-		//.drawGridlines("az")
-		//.drawGridlines("eq")
-		//.drawGridlines("gal")
-		//.drawConstellationLines()
-		.drawBoundaries()
-		.drawConstellation(idx)		
-		//.drawEcliptic()
-		//.drawMeridian()
-		//.drawMeteorShowers()
-
-	var txtcolour = (this.color!="") ? (this.color) : this.col.txt;
-	var fontsize = this.fontsize();
-	
-	//c.fillStyle = txtcolour;
-	c.lineWidth = 1.5;
-	this.container.css({'font-size':this.fontsize()+'px','position':'relative'});
-
-	return this;
-};
 VirtualSky.prototype.drawStars = function(){
 	if(!this.showstars && !this.showstarlabels) return this;
 	var mag,i,p,d;
@@ -1355,192 +1538,7 @@ VirtualSky.prototype.drawPlanet = function(x,y,d,colour,label){
 	return this;
 };
 
-//myCode// calculations taken from drawConstellationBoundaries function which is  deleted and can be restored from p.virtualsky.js
-VirtualSky.prototype.drawBoundaries = function() {
-	this.paths = [];
-	let bds = this.boundaries;
-	this.ctx.lineWidth = (this.constellation.boundaryWidth || 0.75);
-	this.ctx.lineCap = "round";
-	for (let bd=0; bd<bds.length; bd++) {
-		//let colour = 'rgba('+bds[bd].length+', '+bds[bd].length+', '+bds[bd].length+', 0)';
-		let colour = 'transparent';
-		let oneBD = bds[bd];
-		let onePath = new Path2D();
-		onePath.name = bds[bd][0];
-		this.ctx.strokeStyle = colour;
-		this.ctx.fillStyle = colour;
-		this.ctx.beginPath();
-		var posa,posb,a,b,d,atob,j,ra,dc,dra,ddc,points = [];
-		let maxl = this.maxLine(5);
-		for(let l = 1; l < oneBD.length; l+=2){
-			b = [oneBD[l],oneBD[l+1]];
-			if(a){
-				atob = a[0]+','+a[1]+'-'+b[0]+','+b[1];
-			}
-			if(l>1) {
-				ra = (b[0]-a[0])%360;
-				if(ra > 180) ra = ra-360;
-				if(ra < -180) ra = ra+360;
-				dc = (b[1]-a[1]);
-				dra = ra/2;
-				ddc = dc/2;
-				for(i = 1; i <= 2; i++){
-					ra = a[0]+(i*dra);
-					if(ra < 0) ra += 360;
-					dc = a[1]+(i*ddc);
-					// Convert to J2000
-					d = this.fk1tofk5(ra*this.d2r,dc*this.d2r);
-					points.push([d[0],d[1]]);
-				}
-			}
-			a = b
-		}
-		posa = null;
-		
-		for(let i = 0; i < points.length; i++){
-			//j = (i == points.length) ? 0 : i;
-			posb = this.radec2xy(points[i][0],points[i][1]);
-			if(i==0 && this.isVisible(posb.el)) {
-				if(!this.isPointBad(posb)){ onePath.moveTo(posb.x,posb.y)}}
-			if(posa && this.isVisible(posa.el) && this.isVisible(posb.el)){
-				if(!this.isPointBad(posa) && !this.isPointBad(posb)){
-					// Basic error checking: constellations behind us often have very long lines so we'll zap them
-					if(Math.abs(posa.x-posb.x) < maxl && Math.abs(posa.y-posb.y) < maxl){
-						onePath.lineTo(posb.x,posb.y);
-					}
-				}
-			}
-			if(i==points.length-1) {
-				onePath.closePath();
-				this.paths.push(onePath); 
-				this.ctx.fill(onePath);
-				points = [];
-			}
-			posa = posb;
-		}
-	}
-	return this;
-}
-VirtualSky.prototype.drawConstellation = function(idx) {
-	if (this.currentIdx==false || idx==-1) return;	
-	this.ctx.beginPath();
-	this.ctx.strokeStyle = this.col.constellation;
-	this.ctx.fillStyle = this.col.constellation;
-	this.ctx.lineCap = "round";
-	this.ctx.lineWidth = (this.constellation.lineWidth || 0.75);	
-	this.current = this.lines[idx];
-	let maxl = this.maxLine();
-	let posa,posb,a,b,l,idx1,idx2,s;
-	for(l = 3; l < this.current.length; l+=2){
-		a = -1;
-		b = -1;
-		idx1 = ''+this.current[l]+'';
-		idx2 = ''+this.current[l+1]+'';
-		if(!this.hipparcos[idx1]){
-			for(s = 0; s < this.stars.length; s++){
-				if(this.stars[s][0] == this.current[l]){
-					this.hipparcos[idx1] = s;
-					break;
-				}
-			}
-		}
-		if(!this.hipparcos[idx2]){
-			for(s = 0; s < this.stars.length; s++){
-				if(this.stars[s][0] == this.current[l+1]){
-					this.hipparcos[idx2] = s;
-					break;
-				}
-			}
-		}
-		a = this.hipparcos[idx1];
-		b = this.hipparcos[idx2];
-		if(a >= 0 && b >= 0 && a < this.stars.length && b < this.stars.length){
-			posa = this.radec2xy(this.stars[a][2], this.stars[a][3]);
-			posb = this.radec2xy(this.stars[b][2], this.stars[b][3]);
-			if(this.isVisible(posa.el) && this.isVisible(posb.el)){
-				if(!this.isPointBad(posa) && !this.isPointBad(posb)){
-					// Basic error checking: constellations behind us often have very long lines so we'll zap them
-					if(Math.abs(posa.x-posb.x) < maxl && Math.abs(posa.y-posb.y) < maxl){
-						this.ctx.moveTo(posa.x,posa.y);
-						this.ctx.lineTo(posb.x,posb.y);
-					}
-				}
-			}
-		}
-	}
-	this.ctx.stroke();
-	this.currentIdx = idx;//send number Constellation Under Cursor
-	return this;
-}
 
-
-VirtualSky.prototype.drawConstellationLines = function(colour){
-	if(!(this.constellation.lines || this.constellation.labels)) return this;
-	if(!colour) colour = this.col.constellation;
-	var x = this.ctx;
-	x.beginPath();
-	x.strokeStyle = colour;
-	x.fillStyle = colour;
-	this.ctx.lineCap = "round";
-	x.lineWidth = (this.constellation.lineWidth || 0.75);
-	var fontsize = this.fontsize();
-	if(typeof this.lines!=="object") return this;
-	var pos,posa,posb,a,b,l,idx1,idx2,s;
-	var maxl = this.maxLine();
-	for(var c = 0; c < this.lines.length; c++){
-		if(this.constellation.lines){
-			for(l = 3; l < this.lines[c].length; l+=2){
-				a = -1;
-				b = -1;
-				idx1 = ''+this.lines[c][l]+'';
-				idx2 = ''+this.lines[c][l+1]+'';
-				if(!this.hipparcos[idx1]){
-					for(s = 0; s < this.stars.length; s++){
-						if(this.stars[s][0] == this.lines[c][l]){
-							this.hipparcos[idx1] = s;
-							break;
-						}
-					}
-				}
-				if(!this.hipparcos[idx2]){
-					for(s = 0; s < this.stars.length; s++){
-						if(this.stars[s][0] == this.lines[c][l+1]){
-							this.hipparcos[idx2] = s;
-							break;
-						}
-					}
-				}
-				a = this.hipparcos[idx1];
-				b = this.hipparcos[idx2];
-				if(a >= 0 && b >= 0 && a < this.stars.length && b < this.stars.length){
-					posa = this.radec2xy(this.stars[a][2], this.stars[a][3]);
-					posb = this.radec2xy(this.stars[b][2], this.stars[b][3]);
-					if(this.isVisible(posa.el) && this.isVisible(posb.el)){
-						if(!this.isPointBad(posa) && !this.isPointBad(posb)){
-							// Basic error checking: constellations behind us often have very long lines so we'll zap them
-							if(Math.abs(posa.x-posb.x) < maxl && Math.abs(posa.y-posb.y) < maxl){
-								x.moveTo(posa.x,posa.y);
-								x.lineTo(posb.x,posb.y);
-							}
-						}
-					}
-				}
-			}
-		}
-		//myComment// turn labels by set this.constellations {labels: false} line 140
-		if(this.constellation.labels){
-			pos = this.radec2xy(this.lines[c][1]*this.d2r,this.lines[c][2]*this.d2r);
-			if(this.isVisible(pos.el)){
-				var label = this.getPhrase('constellations',this.lines[c][0]);
-				var xoff = (x.measureText) ? -x.measureText(label).width/2 : 0;
-				x.fillText(label,pos.x+xoff,pos.y-fontsize/2);
-				x.fill();
-			}
-		}
-	}
-	x.stroke();
-	return this;
-};
 
 VirtualSky.prototype.drawLabel = function(x,y,d,colour,label){
 	if(label===undefined) return this;
@@ -1959,7 +1957,7 @@ VirtualSky.prototype.setClock = function(seconds){
 		this.updateClock(seconds);
 	}else{
 		this.updateClock(new Date(this.clock.getTime() + seconds*1000));
-	}
+	}	
 	this.draw(this.currentIdx);
 	return this;
 };
@@ -1978,10 +1976,7 @@ VirtualSky.prototype.getJD = function(clock) {
 	if(!clock) clock = this.clock;
 	return ( clock.getTime() / 86400000.0 ) + 2440587.5;
 };
-// Calculate the Great Circle angular distance (in radians) between two points defined by d1,l1 and d2,l2
-VirtualSky.prototype.greatCircle = function(l1,d1,l2,d2){
-	return Math.acos(Math.cos(d1)*Math.cos(d2)*Math.cos(l1-l2)+Math.sin(d1)*Math.sin(d2));
-};
+
 
 // Bind events
 VirtualSky.prototype.on = function(ev,fn){
