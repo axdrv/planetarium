@@ -24,10 +24,10 @@ export class BackgroundItem extends HTMLElement {
             top: 0;            
             bottom: 0;
             background: #04041b;
-            z-index: -10;
             overflow: hidden;
         }
         </style>
+        <div id="bgnd" style="position: fixed; width: 100%; height: 100%;"></div> 
         `;        
     } 
 }

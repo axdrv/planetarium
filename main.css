@@ -167,13 +167,13 @@ main {
 
 /*--Typography--*/
 h1, h2, h3, h4, h5, h6, .bold {
-    font-weight: bold;
-}
-h1 {
-    font-size: 3rem;
+    font-family: 'Raleway';
     line-height: 1;
     margin: 0 4px 0 0;
     padding: 0;
+}
+h1 {
+        
 }
 
 h2 {
@@ -247,6 +247,15 @@ ul>li {
 @media (max-width: 575.98px) {
     .wider576 {
         display: none;
+    }
+    .gap-l {
+        height: 120px;
+    }
+    .gap-m {
+        height: 80px;
+    }
+    .gap-s {
+        height: 40px;
     }
 }
 
