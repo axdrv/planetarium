@@ -12,11 +12,7 @@ body.appendChild(preloader);
 
 //Functions
 function init() {    
-    initLayout(main);
-    // sections.forEach(section=> {
-    //     main.appendChild(section)
-    // })
-    setSizes();
+    initLayout(main);   
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -26,13 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-window.addEventListener('resize', ()=> {setSizes()});
-window.addEventListener('scroll', ()=>{
-});
-window.addEventListener('click', ()=>{
-});
-function setSizes () {
-    let hMargin = document.querySelector('.hmargin');
-    let h = document.documentElement.clientHeight;
-    body.dataset.page !== 'main' ? hMargin.style.marginTop='10px' : hMargin.style.marginTop = h/20 + 'px';
-}
+window.addEventListener('resize', ()=> {});
+window.addEventListener('scroll', ()=>{});
+window.addEventListener('click', ()=>{});
+
