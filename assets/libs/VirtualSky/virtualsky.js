@@ -1187,7 +1187,7 @@ VirtualSky.prototype.drawPlanets = function(){
 		if(this.moon) {
 			pos = this.ecliptic2xy(this.moon.lon*this.d2r,this.moon.lat*this.d2r,this.times.LST);
 			if(this.isVisible(pos.el) && !this.isPointBad(pos)){
-				this.drawMoon(pos.x,pos.y,44,this.col.moon,"moon");
+				this.drawMoon(pos.x,pos.y,6,this.col.moon,"moon");
 				this.lookup.moon = [this.ecliptic2radec(this.moon.lon*this.d2r,this.moon.lat*this.d2r,this.times.LST)];
 				this.lookup.moon[0].label = this.lang.moon;
 			}
@@ -1244,11 +1244,8 @@ VirtualSky.prototype.drawMoon = function(x,y,d){
 	let colour = this.col.txt;
 	let c = this.ctx;
 	let gradient = c.createRadialGradient(x, y, 0, x, y, d);
-		gradient.addColorStop(0.09, "lightyellow");
-		gradient.addColorStop(0.1, "rgba(255, 255, 212, 0.2");
-		gradient.addColorStop(0.2, "transparent");
-		gradient.addColorStop(0.6, "transparent");
-		gradient.addColorStop(0.8, "rgba(0,50,80,0.2");
+		gradient.addColorStop(0.79, "lightyellow");
+		gradient.addColorStop(0.88, "rgba(0,50,80,0.2");
 		gradient.addColorStop(1, "transparent");
 	c.beginPath();
 	c.fillStyle = gradient;
