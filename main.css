@@ -50,7 +50,7 @@ body {
     position: relative;
     font-family: var(--font-base), sans-serif; 
     font-weight: 400;
-    color: var(--d-base);
+    color: var(--l-base);
     background-color: var(--l-base); 
     overflow: hidden;
 }
