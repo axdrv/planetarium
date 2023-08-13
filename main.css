@@ -73,6 +73,7 @@ header, section, footer {
 main {
     width: inherit;
     box-sizing: border-box;
+
 }
 
 /* section {
@@ -173,7 +174,7 @@ h1, h2, h3, h4, h5, h6, .bold {
     padding: 0;
 }
 h1 {
-        
+    font-size: 4rem; 
 }
 
 h2 {
