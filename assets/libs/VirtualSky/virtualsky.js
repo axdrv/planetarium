@@ -7,94 +7,7 @@
 	USAGE: See http://slowe.github.io/VirtualSky/
 */
 (function (S) {
-	function is(a,b){return typeof a===b;}
-	function isEventSupported(eventName) {
-		var el = document.createElement('div');
-		eventName = 'on' + eventName;
-		var isSupported = (eventName in el);
-		if (!isSupported) {
-			el.setAttribute(eventName, 'return;');
-			isSupported = typeof el[eventName] == 'function';
-		}
-		el = null;
-		return isSupported;
-	}
-
-// Add extra stuQuery functions
-stuQuery.prototype.val = function(v){
-	if(this[0]){
-		if(typeof v==="undefined") return this[0].value || S(this[0]).attr('value');
-		else return S(this[0]).attr('value',v || '');
-	}
-	return "";
-};
-stuQuery.prototype.hide = function(){
-	for(var i = 0; i < this.length; i++) S(this[i]).css({'display':'none'});
-};
-stuQuery.prototype.show = function(){
-	for(var i = 0; i < this.length; i++) S(this[i]).css({'display':'block'});
-};
-stuQuery.prototype.animate = function(end,ms,fn){
-	var anim,i,p;
-	var initial = new Array(this.length);
-	var els = new Array(this.length);
-	var props = JSON.stringify(end);
-
-	// Create a structure of starting values
-	for(i = 0; i < this.length; i++){
-		els[i] = S(this[i]);
-		initial[i] = JSON.parse(props);
-		for(p in initial[i]){
-			if(initial[i][p]) initial[i][p] = parseFloat(els[i].css(p));
-		}
-	}
-	var start = new Date();
-	var _obj = this;
-	function change(){
-		var i,p,v,f;
-		var elapsed = new Date() - start;
-		f = (elapsed < ms) ? (elapsed/ms) : 1;
-		for(i = 0; i < _obj.length; i++){
-			v = JSON.parse(JSON.stringify(initial[i]));
-			for(p in v){
-				if(f >= 1) v[p] = end[p].toFixed(4);
-				else v[p] = (initial[i][p] + (f * (end[p] - initial[i][p]))).toFixed(4);
-			}
-			els[i].css(v);
-		}
-		if(f >= 1){
-			clearInterval(anim);
-			if(typeof fn==="function") fn.call(_obj);
-		}
-	}
-	anim = setInterval(change,25);
-	return;
-};
-stuQuery.prototype.fadeIn = function(ms,fn){
-	return this.animate({'opacity':1},ms,fn);
-};
-stuQuery.prototype.fadeOut = function(ms,fn){
-	return this.animate({'opacity':0},ms,fn);
-};
-// Get the URL query string and parse it
-S.query = function() {
-	var r = {length:0};
-	var q = location.search;
-	if(q && q != '#'){
-		// remove the leading ? and trailing &
-		q.replace(/^\?/,'').replace(/\&$/,'').split('&').forEach(function(e){
-			var key = e.split('=')[0];
-			var val = e.split('=')[1];
-			// convert floats
-			if(/^-?[0-9.]+$/.test(val)) val = parseFloat(val);
-			if(val == "true") val = true;
-			if(val == "false") val = false;
-			if(/^\?[0-9\.]+$/.test(val)) val = parseFloat(val);	// convert floats
-			r[key] = val;
-		});
-	}
-	return r;
-};
+	function is(a,b){return typeof a===b;}	
 
 /*! VirtualSky */
 function VirtualSky(input){
@@ -116,7 +29,6 @@ function VirtualSky(input){
 		return d && d[0] || "";
 	};
 
-	this.q = S.query();    // Query string
 	this.setDir();	// Set the default base directory
 	this.dir = this.getDir();  // the JS file path	
 
@@ -460,9 +372,7 @@ function VirtualSky(input){
 		function(data) {
 			this.galaxy = data.galaxy;	
 		}
-	)
-	// Data for star names to display (if showstarlabels is set to true) - indexed by Hipparcos number
-
+	)	
 	//myComment// end of Stars section
 	
 	// Define extra files (JSON/JS)
@@ -504,7 +414,6 @@ function VirtualSky(input){
 	};
 	// Update the colours
 	this.updateColours();
-	
 
 	//myCode//myComment// removed languages object remain and load here only Russian
 
@@ -524,8 +433,6 @@ function VirtualSky(input){
 		function(){},
 		function(e){}
 	);
-
-
 
 	// Define some VirtualSky styles
 	var v,a,b,r,s,p,k,c,bs;
@@ -656,13 +563,13 @@ VirtualSky.prototype.fontsize = function(){
 	return (m < 600) ? ((m < 500) ? ((m < 350) ? ((m < 300) ? ((m < 250) ? 9 : 10) : 11) : 12) : 14) : parseInt(this.container.css('font-size'));
 };
 
-
 VirtualSky.prototype.changeFOV = function(delta){
 	var fov = this.fov;
 	if(delta > 0) fov /= 1.05;
 	else if(delta < 0) fov *= 1.05;
 	return this.setFOV(fov);
 };
+
 VirtualSky.prototype.setFOV = function(fov){
 	if(fov > 60 || typeof fov!=="number") this.fov = 60;
 	else if(fov < 1) this.fov = 1;
@@ -671,11 +578,6 @@ VirtualSky.prototype.setFOV = function(fov){
 	this.maxangle = Math.min(this.maxangle,Math.PI/2);
 	return this;
 };
-// Some pseudo-jQuery
-VirtualSky.prototype.hide = function(){ this.container.hide(); return this; };
-VirtualSky.prototype.show = function(){ this.container.show(); return this; };
-VirtualSky.prototype.toggle = function(){ this.container.toggle(); return this; };
-
 
 //myCode// based on boundaries finding which constellation is under cursor
 VirtualSky.prototype.detectConstellationUnderCursor = 
@@ -1267,10 +1169,6 @@ VirtualSky.prototype.updateSkyGradient = function(x, y){
 	this.skygrad = s;
 	return this;
 };
-
-
-
-
 VirtualSky.prototype.drawLabel = function(x,y,d,colour,label){
 	if(label===undefined) return this;
 	var c = this.ctx;
@@ -1280,9 +1178,6 @@ VirtualSky.prototype.drawLabel = function(x,y,d,colour,label){
 	c.fillText(label,x+xoff,y-(d+2));
 	return this;
 };
-
-
-
 
 VirtualSky.prototype.drawMeridian = function(colour){
 	if(!this.meridian) return this;
@@ -1466,8 +1361,6 @@ function inrangeEl(a,deg){
 	return a;
 }
 
-
-
 VirtualSky.prototype.isVisible = function(el){	
 	if(!this.fullsky) return (el > 0);
 	else return (this.ground) ? (el > 0) : true;
@@ -1553,7 +1446,6 @@ VirtualSky.prototype.sunPos = function(JD){
 	lat = 0;
 	return {lat:lat,lon:lon,Mo:Mo,D:D,N:N};
 };
-// Input is Julian Date
 // Uses method defined in Practical Astronomy (4th ed) by Peter Duffet-Smith and Jonathan Zwart
 VirtualSky.prototype.meanObliquity = function(JD){
 	if(!JD) JD = this.times.JD;
@@ -1563,7 +1455,6 @@ VirtualSky.prototype.meanObliquity = function(JD){
 	T3 = T2*T;
 	return (23.4392917 - 0.0130041667*T - 0.00000016667*T2 + 0.0000005027778*T3)*this.d2r;
 };
-// Take input in radians, decimal Sidereal Time and decimal latitude
 // Uses method defined in Practical Astronomy (4th ed) by Peter Duffet-Smith and Jonathan Zwart
 VirtualSky.prototype.ecliptic2azel = function(l,b,LST,lat){
 	if(!LST){
@@ -1596,7 +1487,7 @@ VirtualSky.prototype.ecliptic2azel = function(l,b,LST,lat){
 	return {az:theta,el:psi};
 };
 // Convert from ecliptic l,b -> RA,Dec
-// Inputs: l (rad), b (rad), Julian date
+//  l (rad), b (rad), Julian date
 VirtualSky.prototype.ecliptic2radec = function(l,b,JD){
 	var e = this.meanObliquity();
 	var sl = Math.sin(l);
@@ -1613,7 +1504,7 @@ VirtualSky.prototype.ecliptic2radec = function(l,b,JD){
 	return { ra:ra, dec:dec };
 };
 // Convert Ecliptic coordinates to x,y position
-// Inputs: l (rad), b (rad), local sidereal time
+//  l (rad), b (rad), local sidereal time
 // Returns [x, y (,elevation)]
 VirtualSky.prototype.ecliptic2xy = function(l,b,LST){
 	LST = LST || this.times.LST;
@@ -1632,7 +1523,7 @@ VirtualSky.prototype.ecliptic2xy = function(l,b,LST){
 };
 
 // Convert RA,Dec -> X,Y
-// Inputs: RA (rad), Dec (rad)
+//  RA (rad), Dec (rad)
 // Returns [x, y (,elevation)]
 VirtualSky.prototype.radec2xy = function(ra,dec){
 	var coords = this.coord2horizon(ra, dec);
@@ -1655,20 +1546,20 @@ VirtualSky.prototype.xy2radec = function(x, y){
 };
 
 // Convert Galactic -> x,y
-// Inputs: longitude (rad), latitude (rad)
+//  longitude (rad), latitude (rad)
 VirtualSky.prototype.gal2xy = function(l,b){
 	var pos = this.gal2radec(l,b);
 	return this.radec2xy(pos[0],pos[1]);
 };
 
 // Convert Galactic -> J2000
-// Inputs: longitude (rad), latitude (rad)
+// longitude (rad), latitude (rad)
 VirtualSky.prototype.gal2radec = function(l,b){
 	// Using SLALIB values
 	return this.Transform([l,b], [-0.054875539726, 0.494109453312, -0.867666135858, -0.873437108010, -0.444829589425, -0.198076386122, -0.483834985808, 0.746982251810, 0.455983795705],false);
 };
 
-// Input is a two element position (degrees) and rotation matrix
+//  is a two element position (degrees) and rotation matrix
 // Output is a two element position (degrees)
 VirtualSky.prototype.Transform = function(p, rot, indeg){
 	if(indeg){
@@ -1782,13 +1673,13 @@ VirtualSky.prototype.setGeo = function(pos){
 	return this;
 };
 
-// Input: latitude (deg)
+//  latitude (deg)
 VirtualSky.prototype.setLatitude = function(l){
 	this.latitude = {'deg':parseFloat(l),'rad':inrangeEl(parseFloat(l)*this.d2r)};
 	return this;
 };
 
-// Input: longitude (deg)
+//  longitude (deg)
 VirtualSky.prototype.setLongitude = function(l){
 	this.longitude = {'deg':parseFloat(l),'rad':parseFloat(l)*this.d2r};
 	while(this.longitude.rad <= -Math.PI) this.longitude.rad += 2*Math.PI;
@@ -1811,7 +1702,7 @@ VirtualSky.prototype.setDec = function(d){
 };
 
 // Pan the view to the specified RA,Dec
-// Inputs: RA (deg), Dec (deg), duration (seconds)
+//  RA (deg), Dec (deg), duration (seconds)
 VirtualSky.prototype.panTo = function(ra,dec,s){
 	if(!s) s = 1000;
 	if(typeof ra!=="number" || typeof dec!=="number") return this;
@@ -1849,7 +1740,6 @@ VirtualSky.prototype.panStep = function(){
 	}
 	return this;
 };
-
 
 VirtualSky.prototype.start = function(){
 	// Clear existing interval
@@ -1920,13 +1810,8 @@ VirtualSky.prototype.setClock = function(seconds){
 		return this;
 	}if(typeof seconds==="string"){
 		seconds = convertTZ(seconds);
-		if(!this.input.clock){
-			if(seconds==="now") this.updateClock(new Date());
-			else this.updateClock(new Date(seconds));
-		}else{
-			this.updateClock((typeof this.input.clock==="string") ? this.input.clock.replace(/%20/g,' ') : this.input.clock);
-			if(typeof this.clock==="string") this.updateClock(new Date(this.clock));
-		}
+		if(seconds==="now") this.updateClock(new Date());
+		else this.updateClock(new Date(seconds));
 	}else if(typeof seconds==="object"){
 		this.updateClock(seconds);
 	}else{
@@ -1950,7 +1835,6 @@ VirtualSky.prototype.getJD = function(clock) {
 	if(!clock) clock = this.clock;
 	return ( clock.getTime() / 86400000.0 ) + 2440587.5;
 };
-
 
 // Bind events
 VirtualSky.prototype.on = function(ev,fn){
@@ -2003,13 +1887,7 @@ function convertTZ(s){
 }
 	
 
-S.virtualsky = function(placeholder,input) {
-	if(typeof input==="object") input.container = placeholder;
-	else {
-		if(typeof placeholder==="string") input = { container: placeholder };
-		else input = placeholder;
-	}
-	if(!input) input = {};
+S.virtualsky = function(input) {
 	input.plugins = S.virtualsky.plugins;
 	return new VirtualSky(input);
 };
