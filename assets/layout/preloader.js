@@ -16,9 +16,7 @@ export class PreloadItem extends HTMLElement {
             }     
         </style> 
         <div class="preloader f-centered">
-            <h1>L</h1>
-            <h1>L</h1>
-            <h1>T</h1>    
+            <h1>П</h1>              
         </div>
         `;
         let animateH1Preloader = anime({
