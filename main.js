@@ -1,7 +1,6 @@
-
 import {preloader} from '/assets/layout/preloader.js';
-import {initLayout} from '/assets/layout/layout.js';
-import {sections} from '/assets/sections/sections.js';
+import {layout} from '/assets/layout/layout.js';
+import {views} from '/assets/views/views.js';
 import {modules} from '/assets/components/modules/modules.js';
 let isMobile = modules[1];
 
@@ -11,15 +10,20 @@ let body = document.body,
 body.appendChild(preloader);
 
 //Functions
-function init() {    
-    initLayout(main);   
+function init() {  
+   body.appendChild(layout.background);
+   body.appendChild(layout.header);
+   body.appendChild(layout.footer);
+    // views.forEach(section=> {
+    //     main.appendChild(section)
+    // })
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     init();
     planetarium = S.virtualsky({
             mobile: isMobile().any
-    });
+    });   
 });
 
 window.addEventListener('resize', ()=> {});

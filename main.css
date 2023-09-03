@@ -27,7 +27,7 @@
     --l-txt: #FFFFFF;
     --d-txt: #21201F;
     --l-accent: #FAFAFA; /*-- bbgd - blocks background--*/
-    --d-accent: #00CA50;    
+    --d-accent: #b25702;    
     --l-links: #73c1ef;
     --d-links: #1e6893;
     --l-disabled: #9b9b9b;
@@ -73,7 +73,7 @@ header, section, footer {
 main {
     width: inherit;
     box-sizing: border-box;
-
+    z-index: 1;
 }
 
 /* section {
@@ -167,35 +167,6 @@ main {
 /*-end elements-*/
 
 /*--Typography--*/
-h1, h2, h3, h4, h5, h6, .bold {
-    font-family: 'Raleway';
-    line-height: 1;
-    margin: 0 4px 0 0;
-    padding: 0;
-}
-h1 {
-    font-size: 4rem; 
-}
-
-h2 {
-    font-size: 2rem;   
-}
-
-h3 {   
-    font-size: 1.5rem;
-}
-
-h4 {    
-    font-size: 1.25rem;
-    margin: 0.5rem;   
-}
-
-h5 {
-      font-size: 1.05rem;
-}
-h6 {
-    font-size: 0.85rem;
-}
 
 a,
 a:visited {
@@ -248,15 +219,6 @@ ul>li {
 @media (max-width: 575.98px) {
     .wider576 {
         display: none;
-    }
-    .gap-l {
-        height: 120px;
-    }
-    .gap-m {
-        height: 80px;
-    }
-    .gap-s {
-        height: 40px;
     }
 }
 

@@ -1,6 +1,7 @@
-export class MenuItem extends HTMLElement {
-    constructor () { //this is template only
-        super();             
+export class MainView extends HTMLElement {
+    constructor () {
+        super();
+        this.intro = "С НОВЫМ ГОДОМ!";        
     }
     connectedCallback() {  
         this.render();
@@ -14,14 +15,10 @@ export class MenuItem extends HTMLElement {
           this.render();
        }
     }
-    render() {
-        this.innerHTML = `
-        <style>
-
-        </style> 
-        <section>
-
-        </section>        
-        `;
+    render() {        
+        this.innerHTML =
+        `<h1>Hello LLT</h1>
+        `
+        ;       
     }
 }
